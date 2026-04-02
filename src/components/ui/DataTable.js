@@ -1,0 +1,6 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import React, {} from 'react';
+export function DataTable({ columns, data, isLoading, onRowClick, emptyMessage = "Нет данных" }) {
+    return (_jsx("div", { className: "table-container", children: _jsxs("table", { className: "data-table table-hoverable", children: [_jsx("thead", { children: _jsx("tr", { children: columns.map((col, index) => (_jsx("th", { style: { width: col.width }, children: col.header }, index))) }) }), _jsx("tbody", { children: isLoading ? (_jsx("tr", { children: _jsx("td", { colSpan: columns.length, style: { padding: '20px', textAlign: 'center' }, children: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430..." }) })) : data.length === 0 ? (_jsx("tr", { children: _jsx("td", { colSpan: columns.length, style: { textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }, children: emptyMessage }) })) : (data.map((item, rowIndex) => (_jsx("tr", { onClick: () => onRowClick && onRowClick(item), children: columns.map((col, colIndex) => (_jsx("td", { children: col.renderCell ? col.renderCell(item) : col.key ? String(item[col.key]) : null }, colIndex))) }, rowIndex)))) })] }) }));
+}
+//# sourceMappingURL=DataTable.js.map

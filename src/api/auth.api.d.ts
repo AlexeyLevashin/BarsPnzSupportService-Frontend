@@ -1,4 +1,5 @@
+import type { LoginRequest, LoginSuccessResponse } from "../types/auth.types";
 export declare const authApi: {
-    login: (credentials: any) => Promise<any>;
+    login: (credentials: LoginRequest) => Promise<LoginSuccessResponse>;
 };
 //# sourceMappingURL=auth.api.d.ts.map

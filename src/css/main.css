@@ -1,0 +1,571 @@
+:root {
+    /* Твои базовые цвета */
+    --primary-color: #8468c2;
+    --primary-hover: #EE82EE;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --input-bg: #ffffff;
+    --focus-ring: rgba(37, 99, 235, 0.2);
+    --btn-color: #3bcbb2;
+
+    /* Дополнительные цвета для дашборда */
+    --app-bg: #f8fafc; /* Светло-серый фон приложения */
+    --sidebar-bg: #ebe7f4;
+    --sidebar-hover: #f1f5f9;
+    --sidebar-active: #eff6ff; /* Нежно-синий для активной вкладки */
+
+    --status-new-bg: #dbeafe;
+    --status-new-text: #1e40af;
+    --status-progress-bg: #fef3c7;
+    --status-progress-text: #92400e;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    color: var(--text-main);
+    background-color: var(--app-bg);
+    min-height: 100vh;
+}
+
+#root {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Layout --- */
+.app-layout {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+    width: 64px;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px 0;
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.sidebar-top, .sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.logo-placeholder {
+    width: 40px;
+    height: 22.68px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    align-items: center;
+    margin-top: 25px;
+}
+
+.nav-item {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    /*border-radius: 10px;*/
+    transition: all 0.2s;
+    text-decoration: none;
+    position: relative;
+}
+
+.nav-item svg {
+    width: 15px;
+    height: 15px;
+}
+
+.nav-item:hover {
+    background-color: var(--sidebar-hover);
+    color: var(--text-main);
+}
+
+.nav-item.active {
+    background-color: var(--sidebar-active);
+    color: var(--primary-color);
+}
+
+.nav-item.logout:hover {
+    background-color: #fee2e2;
+    color: #ef4444;
+}
+
+.position-relative {
+    position: relative;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: #ef4444;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--sidebar-bg);
+}
+
+/* --- Main Content --- */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* --- Header --- */
+.top-header {
+    height: 64px;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    flex-shrink: 0;
+}
+
+.header-left, .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.page-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Переключатель Полученные / Отправленные */
+.role-tabs {
+    display: flex;
+    background-color: var(--sidebar-hover);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    color: var(--text-main);
+}
+
+.tab-btn.active {
+    background-color: var(--card-bg);
+    color: var(--text-main);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-box .search-icon {
+    position: absolute;
+    left: 12px;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+}
+
+/* Стили для самого поля ввода (на всякий случай, чтобы красиво смотрелось) */
+.search-box input {
+    height: 36px;
+    padding: 0 16px 0 36px;
+    font-size: 14px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    width: 240px;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.search-box input:focus {
+    border-color: var(--primary-color);
+}
+
+.action-btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px;
+    background-color: var(--btn-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.action-btn-primary:hover {
+    opacity: 0.9;
+}
+
+/* Второстепенная кнопка (Прозрачная с рамкой) */
+.action-btn-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px;
+    background-color: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.action-btn-secondary:hover {
+    background-color: var(--sidebar-hover);
+}
+
+.action-btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: transparent;
+    border-color: var(--border-color);
+    color: var(--text-muted);
+}
+
+/* Кнопка опасного действия (Удаление) */
+.action-btn-danger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px;
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.action-btn-danger:hover {
+    opacity: 0.9;
+}
+
+/* --- Рабочая область (Тело) --- */
+.content-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.data-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.table-toolbar {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.filters {
+    display: flex;
+    gap: 16px;
+}
+
+.filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--sidebar-hover);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+/* --- Таблица --- */
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.data-table th {
+    padding: 12px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-color);
+    background-color: #fafbfc;
+}
+
+.data-table td {
+    padding: 16px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.data-table tr:hover td {
+    background-color: var(--sidebar-hover);
+}
+
+.item-name {
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+/* Бейджи статусов */
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-new {
+    background-color: var(--status-new-bg);
+    color: var(--status-new-text);
+}
+
+.status-in-progress {
+    background-color: var(--status-progress-bg);
+    color: var(--status-progress-text);
+}
+
+/* Ячейка с инфой о пользователе (аватарка + текст) */
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-email {
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+.user-role {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.more-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.more-btn:hover {
+    background-color: var(--border-color);
+    color: var(--text-main);
+}
+
+.pagination {
+    padding: 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* --- Мобильная адаптация (экраны меньше 768px) --- */
+@media (max-width: 768px) {
+    .app-layout {
+        flex-direction: column;
+    }
+
+    /* 1. Превращаем боковую панель в фиксированное нижнее меню */
+    .sidebar {
+        width: 100%;
+        height: 60px;
+        flex-direction: row;
+        padding: 0 16px;
+        border-right: none;
+        border-top: 1px solid var(--border-color);
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        background-color: var(--card-bg); /* Делаем фон белым, чтобы сливалось с карточками */
+        z-index: 100;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+
+    .sidebar-top {
+        flex-direction: row;
+        width: 100%;
+    }
+
+    /* Логотип в нижнем меню нам не нужен, скрываем */
+    .logo-placeholder {
+        display: none;
+    }
+
+    /* Раскидываем иконки равномерно по ширине экрана */
+    .nav-menu {
+        flex-direction: row;
+        margin-top: 0;
+        justify-content: space-around;
+        width: 100%;
+        gap: 0;
+    }
+
+    .sidebar-bottom {
+        flex-direction: row;
+        gap: 12px;
+    }
+
+    /* Отступ снизу для контента, чтобы нижнее меню ничего не перекрывало */
+    .main-content {
+        margin-bottom: 60px;
+    }
+
+    /* 2. Адаптация шапки (Header) */
+    .top-header {
+        height: auto;
+        padding: 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .header-left, .header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    /* Кнопку "Создать заявку" делаем на всю ширину, чтобы удобно нажимать пальцем */
+    .header-right {
+        justify-content: center;
+    }
+
+    .action-btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* 3. Адаптация тулбара с поиском и фильтрами */
+    .table-toolbar {
+        flex-direction: column-reverse; /* Поиск будет сверху, фильтры под ним */
+        align-items: stretch;
+        gap: 16px;
+    }
+
+    .filters {
+        justify-content: space-between;
+    }
+
+    .filter-btn {
+        flex: 1; /* Кнопки фильтров занимают по 50% ширины */
+        justify-content: center;
+    }
+
+    .search-box {
+        width: 100%;
+    }
+
+    .search-box input {
+        width: 100%;
+    }
+
+    /* 4. Рабочая область и таблица */
+    .content-body {
+        padding: 12px;
+    }
+
+    /* Запрещаем тексту в таблице переноситься, чтобы она скроллилась вправо аккуратно */
+    .data-table th, .data-table td {
+        white-space: nowrap;
+    }
+}

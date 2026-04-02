@@ -1,6 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { PrivateRoute } from './components/PrivateRoute';
+import { MainLayout } from './components/ui/MainLayout';
+import { RequestsPage } from './pages/RequestPage';
+import { InstitutionsPage } from './pages/InstitutionPage';
+import {UsersPage} from "./pages/UserPage";
 
 export const App = () => {
     return (
@@ -9,10 +13,11 @@ export const App = () => {
                 <Route path="/login" element={<LoginPage />} />
 
                 <Route element={<PrivateRoute />}>
-
-                    <Route path="/" element={<div>Главная страница (скоро здесь будут заявки)</div>} />
-                    <Route path="/orders" element={<div>Страница заявок (в разработке)</div>} />
-
+                    <Route element={<MainLayout />}>
+                        <Route path="/" element={<RequestsPage />} />
+                        <Route path="/institutions" element={<InstitutionsPage />} />
+                        <Route path="/users" element={<UsersPage />} />
+                    </Route>
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />

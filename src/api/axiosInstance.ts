@@ -1,12 +1,6 @@
 import axios from 'axios';
 import { tokenUtil } from '../lib/token';
 
-declare module 'axios' {
-    export interface InternalAxiosRequestConfig {
-        _isRetry?: boolean;
-    }
-}
-
 export const axiosInstance = axios.create({
     baseURL: '/api'
 });
@@ -33,8 +27,8 @@ axiosInstance.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._isRetry) {
-            originalRequest._isRetry = true;
+        if (error.response?.status === 401 && !(originalRequest as any)._isRetry) {
+            (originalRequest as any)._isRetry = true;
 
             const tokens = tokenUtil.get();
             if (!tokens.refreshToken) {
@@ -44,7 +38,7 @@ axiosInstance.interceptors.response.use(
             }
 
             try {
-                const res = await axios.post('/api/auth/refresh-token', {
+                const res = await axios.post(`/api/auth/refresh-token`, {
                     refreshToken: tokens.refreshToken
                 });
 
@@ -54,7 +48,7 @@ axiosInstance.interceptors.response.use(
                 return axiosInstance(originalRequest);
 
             } catch (refreshError) {
-                console.warn('Refresh-токен умер. Выкидываем на форму логина.'); // todo на проде убрать
+                console.warn('Refresh-токен умер. Выкидываем на форму логина.');
                 tokenUtil.remove();
                 window.location.href = '/login';
 

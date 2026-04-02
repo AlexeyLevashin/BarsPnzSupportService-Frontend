@@ -25,7 +25,7 @@ axiosInstance.interceptors.response.use((response) => {
             return Promise.reject(new Error('Нет Refresh-токена'));
         }
         try {
-            const res = await axios.post('/api/auth/refresh-token', {
+            const res = await axios.post(`/api/auth/refresh-token`, {
                 refreshToken: tokens.refreshToken
             });
             tokenUtil.save(res.data);
@@ -33,7 +33,7 @@ axiosInstance.interceptors.response.use((response) => {
             return axiosInstance(originalRequest);
         }
         catch (refreshError) {
-            console.warn('Refresh-токен умер. Выкидываем на форму логина.'); // todo на проде убрать
+            console.warn('Refresh-токен умер. Выкидываем на форму логина.');
             tokenUtil.remove();
             window.location.href = '/login';
             return Promise.reject(refreshError);

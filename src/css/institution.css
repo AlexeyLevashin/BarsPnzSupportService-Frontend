@@ -1,0 +1,170 @@
+/* =========================================
+   ШАПКА СТРАНИЦЫ И ТАБЛИЦА
+   ========================================= */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.page-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.table-hoverable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+/* =========================================
+   ЦЕНТРАЛЬНОЕ МОДАЛЬНОЕ ОКНО
+   ========================================= */
+/* Темный фон на весь экран */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(15, 23, 42, 0.5);
+    z-index: 1000;
+    backdrop-filter: blur(3px);
+}
+
+/* Сама карточка, висящая по центру */
+.modal-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    max-width: 90vw;
+    max-height: 90vh;
+    background-color: var(--card-bg);
+    z-index: 1001;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    padding: 32px 24px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.close-btn:hover {
+    background-color: var(--sidebar-hover);
+    color: var(--text-main);
+}
+
+/* Внутренности окна (Просмотр) */
+.modal-details {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-details h3 {
+    font-size: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+/* Внутренности окна (Форма) */
+.modal-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-form h3 {
+    font-size: 20px;
+    margin-top: 0;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.form-group input {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background-color: var(--input-bg);
+}
+
+.form-group input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* =========================================
+   МОБИЛЬНАЯ АДАПТАЦИЯ (Учреждения)
+   ========================================= */
+@media (max-width: 768px) {
+    /* Перестраиваем шапку страницы */
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    /* Растягиваем кнопку добавления на всю ширину */
+    .page-header .action-btn-primary {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Делаем модальное окно полноэкранным на телефоне */
+    .modal-panel {
+        width: 100vw;
+        height: 100vh;
+        max-width: 100vw;
+        max-height: 100vh;
+        border-radius: 0;
+        top: 0;
+        left: 0;
+        transform: none; /* Убираем центрирование, так как окно на весь экран */
+        animation: slideUpModal 0.3s ease forwards;
+    }
+}
+
+/* Анимация выезда снизу вверх для телефона */
+@keyframes slideUpModal {
+    from { opacity: 0; transform: translateY(50px); }
+    to { opacity: 1; transform: translateY(0); }
+}

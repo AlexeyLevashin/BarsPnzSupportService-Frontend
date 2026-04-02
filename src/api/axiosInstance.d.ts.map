@@ -1,1 +1,1 @@
-{"version":3,"file":"axiosInstance.d.ts","sourceRoot":"","sources":["axiosInstance.ts"],"names":[],"mappings":"AAGA,OAAO,QAAQ,OAAO,CAAC;IACnB,UAAiB,0BAA0B;QACvC,QAAQ,CAAC,EAAE,OAAO,CAAC;KACtB;CACJ;AAED,eAAO,MAAM,aAAa,+BAExB,CAAC"}
+{"version":3,"file":"axiosInstance.d.ts","sourceRoot":"","sources":["axiosInstance.ts"],"names":[],"mappings":"AAGA,eAAO,MAAM,aAAa,+BAExB,CAAC"}
