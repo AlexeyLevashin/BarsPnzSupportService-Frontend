@@ -16,7 +16,7 @@ export const institutionApi = {
     },
 
     getMy: async (): Promise<InstitutionResponse> => {
-        const response = await axiosInstance.get<InstitutionResponse>('/institutions/my'); // или какой там у тебя роут
+        const response = await axiosInstance.get<InstitutionResponse>('/institutions/my');
         return response.data as InstitutionResponse;
     },
 
