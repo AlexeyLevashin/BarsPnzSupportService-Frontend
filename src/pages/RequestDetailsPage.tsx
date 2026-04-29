@@ -97,20 +97,11 @@ export const RequestDetailsPage = () => {
 
     const { connection, isConnected } = useSignalR();
     useEffect(() => {
-        // 1. Базовые проверки на наличие нужных переменных
         if (!connection || !isConnected || !id) return;
-
-        // 🛡 2. ЖЕСТКАЯ ПРОВЕРКА СТАТУСА!
-        // Спасает от ошибки "Cannot send data if the connection is not in the 'Connected' State"
         if (connection.state !== "Connected") return;
 
-        console.log("Пытаемся зайти в комнату заявки:", id);
-
-        // Входим в нужные комнаты
-        connection.invoke("JoinRequestGroup", id, hasInternalAccess)
-            .catch(err => console.error("Ошибка входа в группу:", err));
-
-        connection.on("ReceiveMessage", (newMessage: GetMessageResponse) => {
+        // 1. Создаем функцию-обработчик
+        const handleReceiveMessage = (newMessage: GetMessageResponse) => {
             setChatFeed(prev => {
                 if (prev.some(m => m.id === newMessage.id)) return prev;
                 return [...prev, newMessage].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
@@ -119,13 +110,20 @@ export const RequestDetailsPage = () => {
             if (newMessage.senderId !== currentUser?.id) {
                 toast('Новое сообщение в чате!', { icon: '💬' });
             }
-        });
+        };
 
+        // 2. Вешаем именно её
+        connection.on("ReceiveMessage", handleReceiveMessage);
+
+        // 3. Заходим в группу
+        connection.invoke("JoinRequestGroup", id, hasInternalAccess)
+            .catch(err => console.error("Ошибка входа в группу:", err));
+
+        // 4. Очистка при смерти сокета или уходе со страницы
         return () => {
-            connection.off("ReceiveMessage");
-            // 🛡 Обязательно проверяем статус перед выходом, чтобы не крашнуться, если связь уже оборвалась
+            connection.off("ReceiveMessage", handleReceiveMessage);
             if (connection.state === "Connected") {
-                connection.invoke("LeaveRequestGroup", id, hasInternalAccess).catch(console.error);
+                connection.invoke("LeaveRequestGroup", id).catch(console.error);
             }
         };
     }, [connection, isConnected, id, hasInternalAccess]);
