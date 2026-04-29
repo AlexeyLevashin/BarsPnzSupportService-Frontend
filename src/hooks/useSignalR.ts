@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { tokenUtil } from "../lib/token";
+import { authService } from "../services/auth.service";
 
 export const useSignalR = () => {
     const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
@@ -49,11 +50,26 @@ export const useSignalR = () => {
                 setConnection(newConnection);
                 setIsConnected(true);
 
-            } catch (err) {
+            } catch (err: any) {
                 console.error('Ошибка старта SignalR:', err);
-                if (isMounted.current) {
-                    reconnectTimer = setTimeout(buildAndStartConnection, 5000);
+
+                if (!isMounted.current) return;
+
+                const errorMessage = err?.toString() || '';
+                if (errorMessage.includes('401')) {
+                    console.log('SignalR поймал 401. Пытаюсь обновить токен принудительно...');
+
+                    try {
+                        await authService.refreshToken();
+
+                        reconnectTimer = setTimeout(buildAndStartConnection, 1000);
+                        return;
+
+                    } catch (refreshErr) {
+                        console.error('Не удалось обновить токен. Похоже, сессия мертва полностью.', refreshErr);
+                    }
                 }
+                reconnectTimer = setTimeout(buildAndStartConnection, 5000);
             }
         };
 

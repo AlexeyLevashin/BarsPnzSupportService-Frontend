@@ -2,6 +2,7 @@ import { authApi } from '../api/auth.api';
 import { tokenUtil } from '../lib/token';
 import type {LoginRequest} from "../types/auth.types";
 import {UserRole} from "../types/user.types";
+import axios from "axios";
 
 export const authService = {
     login: async (credentials: LoginRequest) => {
@@ -10,6 +11,28 @@ export const authService = {
         tokenUtil.save(data);
 
         return data;
+    },
+
+    refreshToken: async () => {
+        const tokens = tokenUtil.get();
+
+        if (!tokens.refreshToken) {
+            authService.logout();
+            return Promise.reject(new Error('Нет Refresh-токена'));
+        }
+
+        try {
+            const res = await axios.post(`/api/auth/refresh-token`, {
+                refreshToken: tokens.refreshToken
+            });
+
+            tokenUtil.save(res.data);
+            return res.data;
+        } catch (error) {
+            console.warn('Refresh-токен умер. Выкидываем на форму логина.');
+            authService.logout();
+            return Promise.reject(error);
+        }
     },
 
     logout: () => {

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { tokenUtil } from '../lib/token';
+import {authService} from "../services/auth.service";
 
 export const axiosInstance = axios.create({
     baseURL: '/api'
@@ -30,28 +31,13 @@ axiosInstance.interceptors.response.use(
         if (error.response?.status === 401 && !(originalRequest as any)._isRetry) {
             (originalRequest as any)._isRetry = true;
 
-            const tokens = tokenUtil.get();
-            if (!tokens.refreshToken) {
-                tokenUtil.remove();
-                window.location.href = '/login';
-                return Promise.reject(new Error('Нет Refresh-токена'));
-            }
-
             try {
-                const res = await axios.post(`/api/auth/refresh-token`, {
-                    refreshToken: tokens.refreshToken
-                });
+                const newData = await authService.refreshToken();
 
-                tokenUtil.save(res.data);
-                originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
-
+                originalRequest.headers.Authorization = `Bearer ${newData.accessToken}`;
                 return axiosInstance(originalRequest);
 
             } catch (refreshError) {
-                console.warn('Refresh-токен умер. Выкидываем на форму логина.');
-                tokenUtil.remove();
-                window.location.href = '/login';
-
                 return Promise.reject(refreshError);
             }
         }
