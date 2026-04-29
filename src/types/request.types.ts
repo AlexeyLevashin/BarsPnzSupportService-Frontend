@@ -1,16 +1,17 @@
 export enum Priority {
-    Normal = 0,
-    High = 1,
-    Emergency = 2
+    Normal = 'Normal',
+    High = 'High',
+    Emergency = 'Emergency'
 }
 
 export enum RequestStatus {
-    New = 0,
-    InProgress = 1,
-    ClientDataRequest = 2,
-    PendingReview = 3,
-    Closed = 4,
-    Canceled = 5
+    New = 'New',
+    InProgress = 'InProgress',
+    ClientDataRequest = 'ClientDataRequest',
+    PendingReview = 'PendingReview',
+    Closed = 'Closed',
+    Canceled = 'Canceled',
+    Analysis = 'Analysis'
 }
 
 export interface GetRequestResponse {

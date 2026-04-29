@@ -20,6 +20,10 @@
     --status-new-text: #1e40af;
     --status-progress-bg: #fef3c7;
     --status-progress-text: #92400e;
+
+    --internal-bg: #f5f3fa;       /* Очень-очень бледный сиреневый фон */
+    --internal-border: #d1c4e9;   /* Спокойная сиреневая рамка */
+    --internal-accent: #7e6bad;   /* Приглушенный фиолетовый для текста и иконок */
 }
 
 * {
@@ -71,12 +75,11 @@ body {
 }
 
 .logo-placeholder {
-    width: 40px;
-    height: 22.68px;
+    width: 50px;
+    height: 43px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
 }
 
 .nav-menu {
@@ -238,8 +241,8 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 36px;
-    padding: 0 16px;
+    min-height: 36px; /* Меняем жесткий height на min-height */
+    padding: 8px 16px; /* Чуть поправим паддинги для гибкости */
     background-color: var(--btn-color);
     color: white;
     border: none;
@@ -248,6 +251,7 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: opacity 0.2s;
+    /*white-space: nowrap;*/
 }
 
 .action-btn-primary:hover {
@@ -458,6 +462,44 @@ body {
     color: var(--text-muted);
     display: flex;
     justify-content: flex-end;
+}
+
+/* =========================================
+   ДОПОЛНЕНИЯ ДЛЯ ЗАЯВОК (RequestsPage)
+   ========================================= */
+
+/* Обрезка длинного текста с троеточием */
+.text-truncate {
+    max-width: 250px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block; /* Чтобы ширина работала корректно */
+    vertical-align: middle;
+}
+
+/* Маленькая кнопка (для таблиц) */
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
+/* Стили для текстовых полей в формах (чтобы совпадали с input) */
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background-color: var(--input-bg);
+    resize: vertical;
+}
+
+.form-group textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 /* --- Мобильная адаптация (экраны меньше 768px) --- */

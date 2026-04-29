@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+import '../css/institution.css';
+
 import { userService } from '../services/user.service';
 import { institutionService } from '../services/institution.service';
 import { UserRole } from '../types/user.types';
@@ -12,7 +14,7 @@ import type { InstitutionResponse } from '../types/institution.types';
 import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
-import {authService} from "../services/auth.service";
+import { authService } from "../services/auth.service";
 
 const roleOptions = [
     { value: UserRole.User, label: 'Пользователь' },
@@ -69,7 +71,6 @@ export const UsersPage = () => {
                 const res = await institutionService.getAll({ page: 1, pageSize: 1000 });
                 setInstitutionsList(res.items);
             }
-
             else if (currentUser?.role === UserRole.UserAdmin) {
                 const myInst = await institutionService.getMy();
                 setInstitutionsList([myInst]);
@@ -170,7 +171,7 @@ export const UsersPage = () => {
         {
             header: 'Учреждение',
             renderCell: (u) => {
-                if (!u.institutionId) return <span style={{color: 'var(--text-muted)'}}>-</span>;
+                if (!u.institutionId) return <span className="text-muted">-</span>;
                 const inst = institutionsList.find(i => i.id === u.institutionId);
                 return inst ? inst.name : 'Загрузка...';
             }
@@ -214,7 +215,7 @@ export const UsersPage = () => {
                     <button className="action-btn-secondary" disabled={!hasPrev} onClick={() => setSearchParams({ page: (page - 1).toString() })}>
                         Назад
                     </button>
-                    <span style={{ margin: '0 16px', display: 'flex', alignItems: 'center' }}>
+                    <span className="pagination-info">
                         Страница {page} из {totalPages === 0 ? 1 : totalPages}
                     </span>
                     <button className="action-btn-secondary" disabled={!hasNext} onClick={() => setSearchParams({ page: (page + 1).toString() })}>
@@ -247,7 +248,7 @@ export const UsersPage = () => {
 
                         {modalMode === 'delete' && selectedUser && (
                             <div className="modal-details">
-                                <h3 style={{ color: '#ef4444', borderBottomColor: '#fee2e2' }}>Удаление пользователя</h3>
+                                <h3 className="modal-header-danger">Удаление пользователя</h3>
                                 <p>Вы действительно хотите удалить <strong>{selectedUser.email}</strong>?</p>
                                 <div className="modal-actions">
                                     <button className="action-btn-danger" onClick={confirmDelete}>Да, удалить</button>
@@ -258,20 +259,20 @@ export const UsersPage = () => {
 
                         {modalMode === 'password' && createdCredentials && (
                             <div className="modal-details">
-                                <h3 style={{ color: 'var(--primary-color)', marginTop: 0 }}>Пользователь успешно создан!</h3>
+                                <h3 className="modal-header-success">Пользователь успешно создан!</h3>
                                 <p>Обязательно сохраните временный пароль. <strong>Он больше нигде не будет показан.</strong></p>
 
-                                <div style={{ backgroundColor: 'var(--sidebar-hover)', padding: '16px', borderRadius: '8px', margin: '16px 0', border: '1px solid var(--border-color)' }}>
-                                    <p style={{ margin: '0 0 8px 0' }}><strong>Email (Логин):</strong> {createdCredentials.email}</p>
-                                    <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <div className="password-box">
+                                    <p><strong>Email (Логин):</strong> {createdCredentials.email}</p>
+                                    <p className="password-row">
                                         <strong>Пароль:</strong>
-                                        <span style={{ fontFamily: 'monospace', fontSize: '18px', backgroundColor: 'var(--input-bg)', padding: '4px 8px', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#ef4444', fontWeight: 'bold' }}>
+                                        <span className="password-highlight">
                                             {createdCredentials.password}
                                         </span>
                                     </p>
                                 </div>
 
-                                <div className="modal-actions" style={{ marginTop: '24px' }}>
+                                <div className="modal-actions">
                                     <button
                                         className="action-btn-primary"
                                         onClick={() => {
@@ -280,7 +281,7 @@ export const UsersPage = () => {
                                             toast.success('Данные скопированы в буфер обмена!');
                                         }}
                                     >
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: '8px' }}>
+                                        <svg className="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
                                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                                         </svg>
@@ -323,7 +324,7 @@ export const UsersPage = () => {
                                     <select
                                         className="form-select"
                                         value={formData.role}
-                                        onChange={e => setFormData({...formData, role: Number(e.target.value)})}
+                                        onChange={e => setFormData({...formData, role: e.target.value as UserRole})}
                                         disabled={availableRoleOptions.length === 1}
                                     >
                                         {availableRoleOptions.map(opt => (
@@ -352,8 +353,7 @@ export const UsersPage = () => {
                                     </select>
                                 </div>
 
-                                <button type="submit" className="action-btn-primary"
-                                        style={{marginTop: '16px', width: '100%', justifyContent: 'center'}}>
+                                <button type="submit" className="action-btn-primary modal-submit-btn">
                                     Сохранить
                                 </button>
                             </form>

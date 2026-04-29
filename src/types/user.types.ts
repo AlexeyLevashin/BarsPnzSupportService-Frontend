@@ -1,8 +1,8 @@
 export enum UserRole {
-    User = 0,
-    Operator = 1,
-    UserAdmin = 2,
-    SuperAdmin = 3
+    User = 'User',
+    Operator = 'Operator',
+    UserAdmin = 'UserAdmin',
+    SuperAdmin = 'SuperAdmin'
 }
 
 export interface CreateUserByAdminRequest {

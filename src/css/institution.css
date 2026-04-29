@@ -132,6 +132,86 @@
     box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+/* Текст между кнопками пагинации */
+.pagination-info {
+    margin: 0 16px;
+    display: flex;
+    align-items: center;
+}
+
+/* Красный заголовок для удаления */
+.modal-details h3.modal-header-danger {
+    color: #ef4444;
+    border-bottom-color: #fee2e2;
+}
+
+/* Мелкий серый текст предупреждения */
+.modal-warning-text {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* Широкая кнопка подтверждения в формах */
+.modal-submit-btn {
+    margin-top: 16px;
+    width: 100%;
+    justify-content: center;
+}
+
+/* =========================================
+   ОКНО ВЫДАЧИ ПАРОЛЯ И ПРОЧЕЕ (UsersPage)
+   ========================================= */
+
+/* Серый текст-заглушка */
+.text-muted {
+    color: var(--text-muted);
+}
+
+/* Успешный заголовок (для окна с паролем) */
+.modal-details h3.modal-header-success {
+    color: var(--primary-color);
+    margin-top: 0;
+}
+
+/* Красивая плашка с логином и паролем */
+.password-box {
+    background-color: var(--sidebar-hover);
+    padding: 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+    border: 1px solid var(--border-color);
+}
+
+.password-box p {
+    margin: 0 0 8px 0;
+}
+
+/* Делаем строчку с самим паролем flex-контейнером */
+.password-box p.password-row {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Моноширинный шрифт для пароля, чтобы не путать l, I, 1, O, 0 */
+.password-highlight {
+    font-family: monospace;
+    font-size: 18px;
+    background-color: var(--input-bg);
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: #ef4444;
+    font-weight: bold;
+}
+
+/* Иконки внутри кнопок */
+.btn-icon {
+    margin-right: 8px;
+}
+
 /* =========================================
    МОБИЛЬНАЯ АДАПТАЦИЯ (Учреждения)
    ========================================= */

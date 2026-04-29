@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+import '../css/institution.css';
+
 import { requestService } from '../services/request.service';
 import { authService } from '../services/auth.service';
 import { UserRole } from '../types/user.types';
@@ -12,6 +14,7 @@ import type { GetRequestResponse, CreateRequestFormState } from '../types/reques
 import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
+import {useSignalR} from "../hooks/useSignalR";
 
 const priorityOptions = [
     { value: Priority.Normal, label: 'Обычный' },
@@ -23,9 +26,10 @@ const statusLabels: Record<RequestStatus, string> = {
     [RequestStatus.New]: 'Новая',
     [RequestStatus.InProgress]: 'В работе',
     [RequestStatus.ClientDataRequest]: 'Запрос данных',
-    [RequestStatus.PendingReview]: 'Ожидает проверки',
+    [RequestStatus.PendingReview]: 'Ожидает рассмотрения',
     [RequestStatus.Closed]: 'Закрыта',
-    [RequestStatus.Canceled]: 'Отменена'
+    [RequestStatus.Canceled]: 'Отменена',
+    [RequestStatus.Analysis]: 'Анализ',
 };
 
 const formatDate = (dateString?: string | null) => {
@@ -60,6 +64,30 @@ export const RequestsPage = () => {
     const [formData, setFormData] = useState<CreateRequestFormState>({
         theme: '', priority: Priority.Normal, messageText: ''
     });
+
+    const { connection } = useSignalR();
+
+    useEffect(() => {
+        if (!connection) return;
+
+        connection.on("NewRequestCreated", (newRequest: GetRequestResponse) => {
+
+            if (activeTab === 'received') {
+
+                setRequests(prev => {
+                    if (prev.some(req => req.id === newRequest.id)) return prev;
+
+                    return [newRequest, ...prev];
+                });
+
+                toast('Поступила новая заявка!', { icon: '🔔' });
+            }
+        });
+
+        return () => {
+            connection.off("NewRequestCreated");
+        };
+    }, [connection, activeTab]);
 
     const fetchRequests = async () => {
         setIsLoading(true);
@@ -125,7 +153,11 @@ export const RequestsPage = () => {
     const columns: ColumnDef<GetRequestResponse>[] = [
         {
             header: 'ТЕМА',
-            renderCell: (item) => <span className="item-name" style={{ fontWeight: 500 }}>{item.theme}</span>
+            renderCell: (item) => (
+                <div className="item-name text-truncate" title={item.theme}>
+                    {item.theme}
+                </div>
+            )
         },
         {
             header: 'СОЗДАНА',
@@ -145,7 +177,7 @@ export const RequestsPage = () => {
         },
         {
             header: 'УЧРЕЖДЕНИЕ',
-            renderCell: (item) => <span style={{ color: item.institutionName ? 'inherit' : 'var(--text-muted)' }}>{item.institutionName || '-'}</span>
+            renderCell: (item) => <span className={item.institutionName ? '' : 'text-muted'}>{item.institutionName || '-'}</span>
         },
         {
             header: 'КЛИЕНТ',
@@ -153,11 +185,11 @@ export const RequestsPage = () => {
         },
         {
             header: 'ОПЕРАТОР',
-            renderCell: (item) => <span style={{ color: item.operatorFullName ? 'inherit' : 'var(--text-muted)' }}>{item.operatorFullName || '-'}</span>
+            renderCell: (item) => <span className={item.operatorFullName ? '' : 'text-muted'}>{item.operatorFullName || '-'}</span>
         },
         {
             header: 'ЗАКРЫТА',
-            renderCell: (item) => <span style={{ color: item.closedAt ? 'inherit' : 'var(--text-muted)' }}>{formatDate(item.closedAt)}</span>
+            renderCell: (item) => <span className={item.closedAt ? '' : 'text-muted'}>{formatDate(item.closedAt)}</span>
         },
         {
             header: '',
@@ -166,8 +198,7 @@ export const RequestsPage = () => {
                 if (item.status === RequestStatus.New && activeTab === 'received') {
                     return (
                         <button
-                            className="action-btn-primary"
-                            style={{ padding: '4px 12px', fontSize: '12px' }}
+                            className="action-btn-primary btn-sm"
                             onClick={(e) => handleAssign(item.id, e)}
                         >
                             Взять в работу
@@ -193,15 +224,15 @@ export const RequestsPage = () => {
                 }
                 leftContent={
                     hasTabs && (
-                        <div className="role-tabs" style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>
+                        <div className="role-tabs">
                             <button
-                                style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'received' ? '#fff' : 'transparent', boxShadow: activeTab === 'received' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', fontWeight: 500, color: activeTab === 'received' ? '#0f172a' : '#64748b' }}
+                                className={`tab-btn ${activeTab === 'received' ? 'active' : ''}`}
                                 onClick={() => handleTabChange('received')}
                             >
                                 Полученные
                             </button>
                             <button
-                                style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: activeTab === 'sent' ? '#fff' : 'transparent', boxShadow: activeTab === 'sent' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer', fontWeight: 500, color: activeTab === 'sent' ? '#0f172a' : '#64748b' }}
+                                className={`tab-btn ${activeTab === 'sent' ? 'active' : ''}`}
                                 onClick={() => handleTabChange('sent')}
                             >
                                 Отправленные
@@ -226,7 +257,7 @@ export const RequestsPage = () => {
                     <button className="action-btn-secondary" disabled={!hasPrev} onClick={() => setSearchParams({ page: (page - 1).toString() })}>
                         Назад
                     </button>
-                    <span style={{ margin: '0 16px', display: 'flex', alignItems: 'center' }}>
+                    <span className="pagination-info">
                         Страница {page} из {totalPages === 0 ? 1 : totalPages}
                     </span>
                     <button className="action-btn-secondary" disabled={!hasNext} onClick={() => setSearchParams({ page: (page + 1).toString() })}>
@@ -258,7 +289,7 @@ export const RequestsPage = () => {
                                 <select
                                     className="form-select"
                                     value={formData.priority}
-                                    onChange={e => setFormData({...formData, priority: Number(e.target.value)})}
+                                    onChange={e => setFormData({...formData, priority: e.target.value as Priority})}
                                 >
                                     {priorityOptions.map(opt => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -273,12 +304,11 @@ export const RequestsPage = () => {
                                     value={formData.messageText}
                                     onChange={e => setFormData({...formData, messageText: e.target.value})}
                                     rows={5}
-                                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--border-color)', resize: 'vertical' }}
                                     placeholder="Опишите проблему максимально подробно..."
                                 />
                             </div>
 
-                            <button type="submit" className="action-btn-primary" style={{marginTop: '16px', width: '100%', justifyContent: 'center'}}>
+                            <button type="submit" className="action-btn-primary modal-submit-btn">
                                 Отправить заявку
                             </button>
                         </form>

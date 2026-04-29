@@ -13,6 +13,11 @@ export const requestApi = {
         return response.data as PagedResponse<GetRequestResponse>;
     },
 
+    getById: async (id: string): Promise<GetRequestResponse> => {
+        const response = await axiosInstance.get(`/requests/${id}`);
+        return response.data as GetRequestResponse;
+    },
+
     create: async (data: CreateRequestFormState): Promise<void> => {
         const formData = new FormData();
 

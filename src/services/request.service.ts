@@ -1,6 +1,7 @@
 import { requestApi } from '../api/request.api';
 import type { PaginationParams } from '../types/common.types';
-import type { CreateRequestFormState } from '../types/request.types';
+import type {CreateRequestFormState, GetRequestResponse} from '../types/request.types';
+import {axiosInstance} from "../api/axiosInstance";
 
 export const requestService = {
     getAll: async (pageData: PaginationParams) => {
@@ -13,6 +14,10 @@ export const requestService = {
 
     create: async (data: CreateRequestFormState) => {
         return await requestApi.create(data)
+    },
+
+    getById: async (id: string) => {
+        return await requestApi.getById(id);
     },
 
     assignToOperator: async (id: string) => {

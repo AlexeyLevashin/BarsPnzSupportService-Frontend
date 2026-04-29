@@ -161,13 +161,15 @@ export const InstitutionsPage = () => {
                 />
 
                 <div className="pagination">
-                    <button className="action-btn-secondary" disabled={!hasPrev} onClick={() => handlePageChange(page - 1)}>
+                    <button className="action-btn-secondary" disabled={!hasPrev}
+                            onClick={() => handlePageChange(page - 1)}>
                         Назад
                     </button>
-                    <span style={{ margin: '0 16px', display: 'flex', alignItems: 'center' }}>
+                    <span className="pagination-info">
                         Страница {page} из {totalPages === 0 ? 1 : totalPages}
                     </span>
-                    <button className="action-btn-secondary" disabled={!hasNext} onClick={() => handlePageChange(page + 1)}>
+                    <button className="action-btn-secondary" disabled={!hasNext}
+                            onClick={() => handlePageChange(page + 1)}>
                         Вперед
                     </button>
                 </div>
@@ -175,7 +177,7 @@ export const InstitutionsPage = () => {
 
             {modalMode !== 'none' && (
                 <>
-                    <div className="modal-backdrop" onClick={() => setModalMode('none')} />
+                    <div className="modal-backdrop" onClick={() => setModalMode('none')}/>
                     <div className="modal-panel">
                         <button className="close-btn" onClick={() => setModalMode('none')}>✕</button>
 
@@ -193,11 +195,12 @@ export const InstitutionsPage = () => {
                         )}
                         {modalMode === 'delete' && selectedInst && (
                             <div className="modal-details">
-                                <h3 style={{ color: '#ef4444', borderBottomColor: '#fee2e2' }}>Удаление учреждения</h3>
+                                <h3 className="modal-header-danger">Удаление учреждения</h3>
                                 <p>Вы действительно хотите удалить <strong>{selectedInst.name}</strong>?</p>
-                                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Это действие необратимо.</p>
+                                <p className="modal-warning-text">Это действие необратимо.</p>
 
-                                <div className="modal-actions" style={{ marginTop: '24px' }}>
+                                {/* Убрали style={{ marginTop: '24px' }}, так как это уже есть в CSS-классе! */}
+                                <div className="modal-actions">
                                     <button className="action-btn-danger" onClick={confirmDelete}>
                                         Да, удалить
                                     </button>
@@ -233,7 +236,7 @@ export const InstitutionsPage = () => {
                                     <input value={formData.headPatronymic || ''} onChange={e => setFormData({ ...formData, headPatronymic: e.target.value })} />
                                 </div>
 
-                                <button type="submit" className="action-btn-primary" style={{ marginTop: '16px', width: '100%', justifyContent: 'center' }}>
+                                <button type="submit" className="action-btn-primary modal-submit-btn">
                                     Сохранить
                                 </button>
                             </form>

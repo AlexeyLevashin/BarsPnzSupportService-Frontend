@@ -1,0 +1,259 @@
+/* --- Контейнер и Шапка --- */
+.rd-container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 24px 0 24px;
+}
+
+.rd-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.rd-page-title {
+    margin: 0;
+}
+
+.rd-back-btn {
+    margin-left: auto;
+}
+.rd-back-btn.internal {
+    background-color: var(--internal-accent);
+}
+.rd-back-btn.public {
+    background-color: var(--btn-color);
+}
+
+/* --- Инфо о заявке --- */
+.rd-info-card {
+    margin-bottom: 24px;
+    padding: 16px 24px;
+}
+
+.rd-info-title {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 16px;
+}
+
+.rd-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    font-size: 13px;
+}
+
+.rd-info-label {
+    color: var(--text-muted);
+}
+
+.rd-text-muted {
+    color: var(--text-muted);
+}
+
+/* --- Чат и Сообщения --- */
+.rd-chat-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.rd-chat-feed {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background-color: #f8fafc;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.rd-chat-empty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 0;
+}
+
+.rd-message-bubble {
+    width: fit-content;
+    max-width: 85%;
+    border-radius: 8px;
+    padding: 12px 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Позиционирование сообщений */
+.rd-message-bubble.my-message {
+    align-self: flex-end;
+}
+.rd-message-bubble.other-message {
+    align-self: flex-start;
+}
+
+/* Визуал сообщений (ОБНОВЛЕНО ДЛЯ 3 РОЛЕЙ) */
+.rd-message-bubble.public.my-message {
+    background-color: #e0f2fe;
+    border: 1px solid var(--border-color);
+}
+/* 1. Клиент (белый фон) */
+.rd-message-bubble.public.other-message.client {
+    background-color: #ffffff;
+    border: 1px solid var(--border-color);
+}
+/* 2. Коллега-оператор (светло-серый фон для отличия от клиента) */
+.rd-message-bubble.public.other-message.colleague {
+    background-color: #f1f5f9;
+    border: 1px solid var(--border-color);
+}
+
+.rd-message-bubble.internal {
+    background-color: var(--internal-bg);
+    border: 1px solid var(--internal-border);
+    border-left: 4px solid var(--internal-border);
+}
+
+.rd-message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.rd-message-header.internal {
+    border-bottom: 1px solid rgba(132, 104, 194, 0.2);
+    padding-bottom: 4px;
+}
+
+.rd-message-sender-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.rd-message-sender {
+    color: var(--text-main);
+}
+.rd-message-sender.internal {
+    color: var(--internal-accent);
+}
+
+/* БЕЙДЖИКИ (ОБНОВЛЕНО) */
+.rd-badge-internal {
+    background-color: var(--internal-border);
+    color: var(--internal-accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+}
+
+.rd-badge-colleague {
+    background-color: var(--sidebar-hover); /* Или var(--btn-color) если хочешь ярче */
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.rd-message-time {
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.rd-message-time.internal {
+    color: var(--primary-color);
+    opacity: 0.8;
+}
+
+.rd-message-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    font-size: 14px;
+    color: var(--text-main);
+    line-height: 1.5;
+}
+
+/* --- Зона ввода (Sticky) --- */
+.rd-input-area {
+    padding: 20px;
+    border-top: 1px solid var(--border-color);
+    background-color: #fff;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    position: sticky;
+    bottom: -1px;
+    z-index: 10;
+}
+
+.rd-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.rd-tab-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.rd-tab-btn.inactive {
+    border-color: var(--border-color);
+    background: var(--sidebar-hover);
+    color: var(--text-muted);
+    box-shadow: none;
+}
+.rd-tab-btn.active.public {
+    border-color: var(--btn-color);
+    background: #ffffff;
+    color: var(--text-main);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.rd-tab-btn.active.internal {
+    border-color: var(--internal-accent);
+    background: var(--internal-bg);
+    color: var(--internal-accent);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.rd-textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    resize: vertical;
+    border: 2px solid;
+    transition: all 0.2s ease;
+    outline: none;
+}
+.rd-textarea.public {
+    border-color: rgba(59, 203, 178, 0.4);
+}
+.rd-textarea.public:focus {
+    border-color: var(--btn-color);
+}
+.rd-textarea.internal {
+    border-color: var(--internal-border);
+}
+.rd-textarea.internal:focus {
+    border-color: var(--internal-accent);
+}
+
+.rd-input-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}

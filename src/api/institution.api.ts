@@ -5,13 +5,11 @@ import type {PagedResponse, PaginationParams} from "../types/common.types";
 export const institutionApi = {
     getAll: async (pageData: PaginationParams): Promise<PagedResponse<InstitutionResponse>> => {
         const response = await axiosInstance.get('/institutions', { params: pageData });
-
         return response.data as PagedResponse<InstitutionResponse>;
     },
 
     getById: async (id: string): Promise<InstitutionResponse> => {
         const response = await axiosInstance.get(`/institutions/${id}`);
-
         return response.data as InstitutionResponse;
     },
 
