@@ -185,15 +185,17 @@ export const RequestsPage = () => {
                 .filter(f => f.id && !f.error)
                 .map(f => f.id as string);
 
+            const messageData: any = { text: formData.messageText };
+
+            if (attachmentIds.length > 0) {
+                messageData.attachmentIds = attachmentIds;
+            }
+
             const requestPayload: CreateRequestDto = {
                 theme: formData.theme,
                 priority: formData.priority,
-                message: {
-                    text: formData.messageText,
-                    attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined
-                }
+                message: messageData
             };
-
             await requestService.create(requestPayload);
 
             toast.success('Заявка успешно создана');
