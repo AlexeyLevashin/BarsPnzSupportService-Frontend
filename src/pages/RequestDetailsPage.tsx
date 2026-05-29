@@ -194,11 +194,16 @@ export const RequestDetailsPage = () => {
                 .filter(f => f.id && !f.error)
                 .map(f => f.id as string);
 
-            await messageService.create(id, {
+            const messagePayload: any = {
                 text: messageText,
-                type: inputTab,
-                attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined
-            });
+                type: MessageType.Public
+            };
+
+            if (attachmentIds.length > 0) {
+                messagePayload.attachmentIds = attachmentIds;
+            }
+
+            await messageService.create(id, messagePayload);
 
             setMessageText('');
             setAttachedFiles([]);
