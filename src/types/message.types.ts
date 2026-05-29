@@ -11,9 +11,11 @@ export interface GetMessageResponse {
     createdAt: string;
     senderFullName: string;
     senderId: string;
+    attachments?: { id: string; fileName: string }[];
 }
 
 export interface CreateMessageDto {
     text: string;
     type: MessageType;
+    attachmentIds?: string[];
 }

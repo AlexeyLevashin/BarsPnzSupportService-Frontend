@@ -1,6 +1,6 @@
 import { requestApi } from '../api/request.api';
 import type { PaginationParams } from '../types/common.types';
-import type {CreateRequestFormState, GetRequestResponse} from '../types/request.types';
+import type {CreateRequestDto, CreateRequestFormState, GetRequestResponse} from '../types/request.types';
 import {axiosInstance} from "../api/axiosInstance";
 
 export const requestService = {
@@ -12,7 +12,7 @@ export const requestService = {
         return await requestApi.getMy(pageData)
     },
 
-    create: async (data: CreateRequestFormState) => {
+    create: async (data: CreateRequestDto) => {
         return await requestApi.create(data)
     },
 

@@ -1,3 +1,5 @@
+import type {MessageType} from "./message.types";
+
 export enum Priority {
     Normal = 'Normal',
     High = 'High',
@@ -35,4 +37,14 @@ export interface CreateRequestFormState {
     theme: string;
     priority: Priority;
     messageText: string;
+    attachmentIds?: string[];
+}
+
+export interface CreateRequestDto {
+    theme: string;
+    priority: Priority;
+    message: {
+        text: string;
+        attachmentIds?: string[];
+    };
 }

@@ -7,12 +7,13 @@ import '../css/requestDetails.css';
 import { requestService } from '../services/request.service';
 import { messageService } from '../services/message.service';
 import { authService } from '../services/auth.service';
+import { fileService } from '../services/file.service';
 import { UserRole } from '../types/user.types';
 import { Priority, RequestStatus } from '../types/request.types';
 import { MessageType } from '../types/message.types';
 import type { GetRequestResponse } from '../types/request.types';
 import type { GetMessageResponse } from '../types/message.types';
-import {useSignalR} from "../hooks/useSignalR";
+import { useSignalR } from "../hooks/useSignalR";
 
 const priorityLabels: Record<Priority, string> = {
     [Priority.Normal]: 'Обычный',
@@ -52,10 +53,20 @@ export const RequestDetailsPage = () => {
     const [inputTab, setInputTab] = useState<MessageType>(MessageType.Public);
     const [messageText, setMessageText] = useState('');
     const [isSending, setIsSending] = useState(false);
+
+    // Стейт и реф для файлов
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [attachedFiles, setAttachedFiles] = useState<{
+        localId: string;
+        file: File;
+        id?: string;
+        isUploading: boolean;
+        error?: string;
+    }[]>([]);
+
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const scrollToBottom = () => {
         const el = messagesEndRef.current as any;
-
         if (el) {
             el.scrollIntoView({ behavior: 'smooth' });
         }
@@ -100,7 +111,6 @@ export const RequestDetailsPage = () => {
         if (!connection || !isConnected || !id) return;
         if (connection.state !== "Connected") return;
 
-        // 1. Создаем функцию-обработчик
         const handleReceiveMessage = (newMessage: GetMessageResponse) => {
             setChatFeed(prev => {
                 if (prev.some(m => m.id === newMessage.id)) return prev;
@@ -112,14 +122,10 @@ export const RequestDetailsPage = () => {
             }
         };
 
-        // 2. Вешаем именно её
         connection.on("ReceiveMessage", handleReceiveMessage);
-
-        // 3. Заходим в группу
         connection.invoke("JoinRequestGroup", id, hasInternalAccess)
             .catch(err => console.error("Ошибка входа в группу:", err));
 
-        // 4. Очистка при смерти сокета или уходе со страницы
         return () => {
             connection.off("ReceiveMessage", handleReceiveMessage);
             if (connection.state === "Connected") {
@@ -128,17 +134,74 @@ export const RequestDetailsPage = () => {
         };
     }, [connection, isConnected, id, hasInternalAccess]);
 
+    // Обработка выбора файлов
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.length) return;
+        const files = Array.from(e.target.files);
+
+        const newAttachments = files.map(file => ({
+            localId: Math.random().toString(36).substring(7),
+            file,
+            isUploading: true
+        }));
+
+        setAttachedFiles(prev => [...prev, ...newAttachments]);
+
+        newAttachments.forEach(async (att) => {
+            try {
+                const fileId = await fileService.upload(att.file);
+                setAttachedFiles(prev => prev.map(p =>
+                    p.localId === att.localId ? { ...p, id: fileId, isUploading: false } : p
+                ));
+            } catch (error) {
+                setAttachedFiles(prev => prev.map(p =>
+                    p.localId === att.localId ? { ...p, isUploading: false, error: 'Ошибка' } : p
+                ));
+                toast.error(`Не удалось загрузить ${att.file.name}`);
+            }
+        });
+
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleRemoveFile = (localId: string) => {
+        setAttachedFiles(prev => prev.filter(f => f.localId !== localId));
+    };
+
+    const handleDownloadClick = async (fileId: string) => {
+        try {
+            const url = await fileService.getUrl(fileId);
+            window.open(url, '_blank');
+        } catch {
+            toast.error('Не удалось получить ссылку на файл');
+        }
+    };
+
+    // Отправка сообщения
     const handleSendMessage = async () => {
-        if (!messageText.trim() || !id) return;
+        const isFilesUploading = attachedFiles.some(f => f.isUploading);
+        if (isFilesUploading) {
+            toast.error('Дождитесь окончания загрузки файлов');
+            return;
+        }
+
+        if (!messageText.trim() && attachedFiles.length === 0) return;
+        if (!id) return;
 
         setIsSending(true);
         try {
+            const attachmentIds = attachedFiles
+                .filter(f => f.id && !f.error)
+                .map(f => f.id as string);
+
             await messageService.create(id, {
                 text: messageText,
-                type: inputTab
+                type: inputTab,
+                attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined
             });
 
             setMessageText('');
+            setAttachedFiles([]);
         } catch (error) {
             toast.error('Ошибка при отправке');
         } finally {
@@ -203,8 +266,8 @@ export const RequestDetailsPage = () => {
                     ) : (
                         chatFeed.map(msg => {
                             const isMyMessage = msg.senderId === currentUser?.id;
-                            const isClient = msg.senderId === request.clientId; // Проверяем, клиент ли это
-                            const isColleague = !isMyMessage && !isClient;      // Значит это коллега
+                            const isClient = msg.senderId === request.clientId;
+                            const isColleague = !isMyMessage && !isClient;
                             const isInternal = msg.type === MessageType.Internal;
 
                             let alignClass = '';
@@ -225,14 +288,12 @@ export const RequestDetailsPage = () => {
                                             <strong className={`rd-message-sender ${isInternal ? 'internal' : ''}`}>
                                                 {msg.senderFullName}
                                             </strong>
-
                                             {isInternal && (
                                                 <span className="rd-badge-internal">скрыто от клиента</span>
                                             )}
                                             {isColleague && !isInternal && (
                                                 <span className="rd-badge-colleague">Оператор</span>
                                             )}
-
                                         </div>
                                         <span className={`rd-message-time ${isInternal ? 'internal' : ''}`}>
                                             {formatDate(msg.createdAt)}
@@ -241,6 +302,20 @@ export const RequestDetailsPage = () => {
                                     <div className="rd-message-text">
                                         {msg.text}
                                     </div>
+                                    {/* Отрисовка прикрепленных файлов в сообщении */}
+                                    {msg.attachments && msg.attachments.length > 0 && (
+                                        <div className="rd-message-attachments">
+                                            {msg.attachments.map(att => (
+                                                <div
+                                                    key={att.id}
+                                                    className="rd-attachment-link"
+                                                    onClick={() => handleDownloadClick(att.id)}
+                                                >
+                                                    📎 {att.fileName}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })
@@ -267,6 +342,19 @@ export const RequestDetailsPage = () => {
                         </div>
                     )}
 
+                    {/* Зона предпросмотра прикрепленных файлов */}
+                    {attachedFiles.length > 0 && (
+                        <div className="rd-attachments-preview">
+                            {attachedFiles.map(file => (
+                                <div key={file.localId} className={`rd-preview-item ${file.error ? 'error' : ''}`}>
+                                    <span className="rd-preview-name">{file.file.name}</span>
+                                    {file.isUploading && <span className="rd-preview-loader">⏳</span>}
+                                    <button className="rd-preview-remove" onClick={() => handleRemoveFile(file.localId)}>✕</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <textarea
                         value={messageText}
                         onChange={e => setMessageText(e.target.value)}
@@ -276,10 +364,25 @@ export const RequestDetailsPage = () => {
                     />
 
                     <div className="rd-input-actions">
+                        <input
+                            type="file"
+                            multiple
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            style={{ display: 'none' }}
+                        />
+                        <button
+                            className="rd-attach-btn"
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Прикрепить файл"
+                        >
+                            📎
+                        </button>
+
                         <button
                             className={`action-btn-primary ${isInternalMode ? 'rd-back-btn internal' : 'rd-back-btn public'}`}
                             onClick={handleSendMessage}
-                            disabled={isSending || !messageText.trim()}
+                            disabled={isSending || (attachedFiles.some(f => f.isUploading)) || (!messageText.trim() && attachedFiles.length === 0)}
                         >
                             {isSending ? 'Отправка...' : 'Отправить'}
                         </button>

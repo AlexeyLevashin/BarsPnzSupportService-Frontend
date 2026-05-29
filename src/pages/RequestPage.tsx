@@ -1,20 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
 import '../css/institution.css';
+// Убедись, что стили для файлов подтянутся (если они лежат в requestDetails.css)
+import '../css/requestDetails.css';
 
-import { requestService } from '../services/request.service';
-import { authService } from '../services/auth.service';
-import { UserRole } from '../types/user.types';
-import { Priority, RequestStatus } from '../types/request.types';
-import type { GetRequestResponse, CreateRequestFormState } from '../types/request.types';
+import {requestService} from '../services/request.service';
+import {authService} from '../services/auth.service';
+import {fileService} from '../services/file.service'; // <-- Добавили сервис файлов
+import {UserRole} from '../types/user.types';
+import type {CreateRequestDto, CreateRequestFormState, GetRequestResponse} from '../types/request.types';
+import {Priority, RequestStatus} from '../types/request.types';
 
-import { PageHeader } from '../components/ui/PageHeader';
-import { TableToolbar } from '../components/ui/TableToolbar';
-import { DataTable, type ColumnDef } from '../components/ui/DataTable';
+import {PageHeader} from '../components/ui/PageHeader';
+import {TableToolbar} from '../components/ui/TableToolbar';
+import {type ColumnDef, DataTable} from '../components/ui/DataTable';
 import {useSignalR} from "../hooks/useSignalR";
+import {MessageType} from "../types/message.types";
 
 const priorityOptions = [
     { value: Priority.Normal, label: 'Обычный' },
@@ -65,21 +69,28 @@ export const RequestsPage = () => {
         theme: '', priority: Priority.Normal, messageText: ''
     });
 
+    // --- СТЕЙТЫ ДЛЯ ФАЙЛОВ ---
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const [attachedFiles, setAttachedFiles] = useState<{
+        localId: string;
+        file: File;
+        id?: string;
+        isUploading: boolean;
+        error?: string;
+    }[]>([]);
+    const [isSubmitting, setIsSubmitting] = useState(false); // Для блокировки кнопки сохранения
+
     const { connection } = useSignalR();
 
     useEffect(() => {
         if (!connection) return;
 
         connection.on("NewRequestCreated", (newRequest: GetRequestResponse) => {
-
             if (activeTab === 'received') {
-
                 setRequests(prev => {
                     if (prev.some(req => req.id === newRequest.id)) return prev;
-
                     return [newRequest, ...prev];
                 });
-
                 toast('Поступила новая заявка!', { icon: '🔔' });
             }
         });
@@ -116,13 +127,81 @@ export const RequestsPage = () => {
         setSearchParams({ page: '1' });
     };
 
+    // --- ОБРАБОТКА ФАЙЛОВ В МОДАЛКЕ ---
+    const handleAttachClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        (fileInputRef.current as HTMLInputElement)?.click();
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.length) return;
+        const files = Array.from(e.target.files);
+
+        const newAttachments = files.map(file => ({
+            localId: Math.random().toString(36).substring(7),
+            file,
+            isUploading: true
+        }));
+
+        setAttachedFiles(prev => [...prev, ...newAttachments]);
+
+        newAttachments.forEach(async (att) => {
+            try {
+                const fileId = await fileService.upload(att.file);
+                setAttachedFiles(prev => prev.map(p =>
+                    p.localId === att.localId ? { ...p, id: fileId, isUploading: false } : p
+                ));
+            } catch (error) {
+                setAttachedFiles(prev => prev.map(p =>
+                    p.localId === att.localId ? { ...p, isUploading: false, error: 'Ошибка' } : p
+                ));
+                toast.error(`Не удалось загрузить ${att.file.name}`);
+            }
+        });
+
+        if (fileInputRef.current) {
+            fileInputRef.current!.value = '';
+        }
+    };
+
+    const handleRemoveFile = (localId: string) => {
+        setAttachedFiles(prev => prev.filter(f => f.localId !== localId));
+    };
+
+    // --- СОХРАНЕНИЕ ЗАЯВКИ С ФАЙЛАМИ ---
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Проверяем, не грузятся ли еще файлы
+        const isFilesUploading = attachedFiles.some(f => f.isUploading);
+        if (isFilesUploading) {
+            toast.error('Дождитесь окончания загрузки файлов');
+            return;
+        }
+
+        setIsSubmitting(true);
         try {
-            await requestService.create(formData);
+            const attachmentIds = attachedFiles
+                .filter(f => f.id && !f.error)
+                .map(f => f.id as string);
+
+            const requestPayload: CreateRequestDto = {
+                theme: formData.theme,
+                priority: formData.priority,
+                message: {
+                    text: formData.messageText,
+                    attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined
+                }
+            };
+
+            await requestService.create(requestPayload);
+
             toast.success('Заявка успешно создана');
+
+            // Очищаем форму и модалку
             setIsModalOpen(false);
             setFormData({ theme: '', priority: Priority.Normal, messageText: '' });
+            setAttachedFiles([]);
 
             if (activeTab !== 'sent') {
                 handleTabChange('sent');
@@ -131,6 +210,8 @@ export const RequestsPage = () => {
             }
         } catch (error) {
             toast.error('Ошибка при создании заявки');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -151,6 +232,7 @@ export const RequestsPage = () => {
     };
 
     const columns: ColumnDef<GetRequestResponse>[] = [
+        // ... (Твои колонки оставлены без изменений)
         {
             header: 'ТЕМА',
             renderCell: (item) => (
@@ -243,6 +325,7 @@ export const RequestsPage = () => {
             />
 
             <div className="data-card">
+                {/* ... (Таблица и пагинация оставлены без изменений) ... */}
                 <TableToolbar searchPlaceholder="Поиск заявок..." />
 
                 <DataTable<GetRequestResponse>
@@ -308,8 +391,45 @@ export const RequestsPage = () => {
                                 />
                             </div>
 
-                            <button type="submit" className="action-btn-primary modal-submit-btn">
-                                Отправить заявку
+                            {/* --- ЗОНА ПРИКРЕПЛЕНИЯ ФАЙЛОВ --- */}
+                            <div className="form-group" style={{ marginBottom: '15px' }}>
+                                {/* Отрисовка списка выбранных/загружаемых файлов */}
+                                {attachedFiles.length > 0 && (
+                                    <div className="rd-attachments-preview" style={{ marginBottom: '10px' }}>
+                                        {attachedFiles.map(file => (
+                                            <div key={file.localId} className={`rd-preview-item ${file.error ? 'error' : ''}`}>
+                                                <span className="rd-preview-name">{file.file.name}</span>
+                                                {file.isUploading && <span className="rd-preview-loader">⏳</span>}
+                                                <button type="button" className="rd-preview-remove" onClick={() => handleRemoveFile(file.localId)}>✕</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <input
+                                    type="file"
+                                    multiple
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    style={{ display: 'none' }}
+                                />
+
+                                <button
+                                    type="button"
+                                    className="action-btn-secondary"
+                                    onClick={handleAttachClick}
+                                    style={{width: 'fit-content'}}
+                                >
+                                    📎 Прикрепить файлы
+                                </button>
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="action-btn-primary modal-submit-btn"
+                                disabled={isSubmitting || attachedFiles.some(f => f.isUploading)}
+                            >
+                                {isSubmitting ? 'Создание...' : 'Отправить заявку'}
                             </button>
                         </form>
                     </div>

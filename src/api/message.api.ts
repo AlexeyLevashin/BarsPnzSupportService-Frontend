@@ -14,11 +14,6 @@ export const messageApi = {
     },
 
     create: async (requestId: string, data: CreateMessageDto): Promise<void> => {
-        const formData = new FormData();
-
-        formData.append('Text', data.text);
-        formData.append('Type', data.type);
-
-        await axiosInstance.post(`/requests/${requestId}/messages`, formData);
+        await axiosInstance.post(`/requests/${requestId}/messages`, data);
     }
 };
