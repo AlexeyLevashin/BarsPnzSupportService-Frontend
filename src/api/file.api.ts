@@ -14,5 +14,9 @@ export const fileApi = {
     getUrl: async (fileId: string): Promise<string> => {
         const response = await axiosInstance.get(`/files/${fileId}/url`);
         return response.data.url;
+    },
+
+    delete: async (fileId: string): Promise<void> => {
+        await axiosInstance.delete(`/files/${fileId}`);
     }
 };

@@ -6,5 +6,8 @@ export const fileService = {
     },
     getUrl: async (fileId: string) => {
         return await fileApi.getUrl(fileId);
+    },
+    delete: async (fileId: string) => {
+        return await fileApi.delete(fileId);
     }
 };

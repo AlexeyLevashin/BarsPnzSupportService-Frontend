@@ -164,8 +164,18 @@ export const RequestsPage = () => {
         }
     };
 
-    const handleRemoveFile = (localId: string) => {
+    const handleRemoveFile = async (localId: string) => {
+        const fileToRemove = attachedFiles.find(f => f.localId === localId);
+
         setAttachedFiles(prev => prev.filter(f => f.localId !== localId));
+
+        if (fileToRemove?.id && !fileToRemove.error) {
+            try {
+                await fileService.delete(fileToRemove.id);
+            } catch (error) {
+                console.error('Ошибка при удалении файла с сервера:', error);
+            }
+        }
     };
 
     // --- СОХРАНЕНИЕ ЗАЯВКИ С ФАЙЛАМИ ---
