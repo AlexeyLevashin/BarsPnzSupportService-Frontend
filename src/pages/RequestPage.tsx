@@ -217,12 +217,12 @@ export const RequestsPage = () => {
                 const ops = await userService.getOperators();
                 setOperators(ops);
                 // По умолчанию выбираем первого в списке
-                if (ops.length > 0) setSelectedOperatorId(ops[0].id);
+                if (ops.length > 0) setSelectedOperatorId(ops[0]?.id || '');
             } catch (error) {
                 toast.error('Не удалось загрузить список сотрудников');
             }
         } else {
-            if (operators.length > 0) setSelectedOperatorId(operators[0].id);
+            if (operators.length > 0) setSelectedOperatorId(operators[0]?.id || '');
         }
     };
 

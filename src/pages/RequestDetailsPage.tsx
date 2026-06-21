@@ -191,7 +191,7 @@ export const RequestDetailsPage = () => {
 
     useEffect(() => {
         if (!availableStatuses.includes(selectedStatus) && availableStatuses.length > 0) {
-            setSelectedStatus(availableStatuses[0]);
+            setSelectedStatus(availableStatuses[0] as RequestStatus);;
         }
     }, [availableStatuses, selectedStatus]);
 
@@ -235,11 +235,14 @@ export const RequestDetailsPage = () => {
                 const attachmentIds = attachedFiles.filter(f => f.id && !f.error).map(f => f.id as string);
 
                 const messagePayload: CreateMessageDto = {
-                    text: messageText, // Пустая строка "", если есть только файл (бэкенд это схавает)
+                    text: messageText,
                     type: inputTab,
-                    status: selectedStatus,
-                    attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined
+                    status: selectedStatus
                 };
+
+                if (attachmentIds && attachmentIds.length > 0) {
+                    messagePayload.attachmentIds = attachmentIds;
+                }
 
                 await messageService.create(id, messagePayload);
             }
