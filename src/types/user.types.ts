@@ -34,3 +34,8 @@ export interface GetUserResponse {
     role: UserRole;
     institutionId?: string | null;
 }
+
+export interface GetOperatorResponse {
+    id: string;
+    operatorFullName: string;
+}

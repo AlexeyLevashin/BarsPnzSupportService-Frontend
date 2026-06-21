@@ -1,3 +1,6 @@
+// types/message.types.ts
+import { RequestStatus } from './request.types';
+
 export enum MessageType {
     Public = 'Public',
     Internal = 'Internal'
@@ -15,7 +18,8 @@ export interface GetMessageResponse {
 }
 
 export interface CreateMessageDto {
-    text: string;
+    text?: string;
     type: MessageType;
+    status: RequestStatus;
     attachmentIds?: string[];
 }

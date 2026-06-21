@@ -7,6 +7,8 @@ export const userService = {
         return await userApi.getAll(pageData);
     },
 
+    getOperators: async () => await userApi.getOperators(),
+
     getById: async (id: string) => {
         return await userApi.getById(id);
     },

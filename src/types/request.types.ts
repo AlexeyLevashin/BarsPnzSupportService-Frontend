@@ -1,5 +1,4 @@
-import type {MessageType} from "./message.types";
-
+// types/request.types.ts
 export enum Priority {
     Normal = 'Normal',
     High = 'High',
@@ -26,8 +25,7 @@ export interface GetRequestResponse {
     clientFullName: string;
     institutionName?: string | null;
 
-    operatorId?: string | null;
-    operatorFullName?: string | null;
+    operators?: { id: string; operatorFullName: string }[];
 
     status: RequestStatus;
     priority: Priority;
@@ -47,4 +45,8 @@ export interface CreateRequestDto {
         text: string;
         attachmentIds?: string[];
     };
+}
+
+export interface UpdateStatusDto {
+    status: RequestStatus;
 }

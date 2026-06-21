@@ -1,5 +1,10 @@
 import { axiosInstance } from './axiosInstance';
-import type {CreateUserResponse, GetUserResponse, CreateUserByAdminRequest} from "../types/user.types";
+import type {
+    CreateUserResponse,
+    GetUserResponse,
+    CreateUserByAdminRequest,
+    GetOperatorResponse
+} from "../types/user.types";
 import type {PagedResponse, PaginationParams} from "../types/common.types";
 
 export const userApi = {
@@ -7,6 +12,11 @@ export const userApi = {
         const response = await axiosInstance.get('/users', {params: pageData});
 
         return response.data as PagedResponse<GetUserResponse>;
+    },
+
+    getOperators: async (): Promise<GetOperatorResponse[]> => {
+        const response = await axiosInstance.get('/users/operators');
+        return response.data;
     },
 
     getById: async (id: string): Promise<GetUserResponse> => {
