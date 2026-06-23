@@ -258,6 +258,13 @@ body {
     opacity: 0.9;
 }
 
+.action-btn-primary:disabled {
+    background-color: #cbd5e0; /* Серый цвет */
+    cursor: not-allowed;        /* Запрещающий курсор */
+    opacity: 0.6;              /* Прозрачность */
+    pointer-events: none;      /* Чтобы клик физически не проходил */
+}
+
 /* Второстепенная кнопка (Прозрачная с рамкой) */
 .action-btn-secondary {
     display: flex;

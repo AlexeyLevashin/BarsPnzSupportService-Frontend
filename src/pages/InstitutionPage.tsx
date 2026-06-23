@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { institutionService } from '../services/institution.service';
 import type { InstitutionResponse, CreateInstitutionRequest } from '../types/institution.types';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+import { getErrorMessage } from '../lib/errorHandler'; // Подключили наш хелпер
 import '../css/institution.css';
 
 import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
+
 export const InstitutionsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -35,7 +36,8 @@ export const InstitutionsPage = () => {
             setHasPrev(res.pageInfo.hasPreviousPage);
             setHasNext(res.pageInfo.hasNextPage);
         } catch (error) {
-            console.error(error);
+            // Здесь тоже можно выводить тост, если не удалось загрузить список
+            toast.error(getErrorMessage(error, 'Ошибка при загрузке учреждений'));
         } finally {
             setIsLoading(false);
         }
@@ -81,19 +83,13 @@ export const InstitutionsPage = () => {
             }
             setModalMode('none');
             fetchInstitutions();
-        } catch (error) {
-            if (axios.isAxiosError(error)) {
-                if (error.response?.status === 403) {
-                    toast.error('У вас нет прав для выполнения этого действия');
-                }
-                else if (error.response?.data?.error) {
-                    toast.error(error.response.data.error);
-                }
-                else {
-                    toast.error('Произошла ошибка при сохранении');
-                }
+        } catch (error: any) {
+            // Оставил проверку на 403 статус (нет прав),
+            // а все остальные ошибки теперь красиво прогоняются через хелпер!
+            if (error?.response?.status === 403) {
+                toast.error('У вас нет прав для выполнения этого действия');
             } else {
-                console.error(error);
+                toast.error(getErrorMessage(error, 'Произошла ошибка при сохранении'));
             }
         }
     };
@@ -111,11 +107,8 @@ export const InstitutionsPage = () => {
             setModalMode('none');
             fetchInstitutions();
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data?.error) {
-                toast.error(error.response.data.error);
-            } else {
-                toast.error('Ошибка при удалении учреждения');
-            }
+            // Вся старая логика с if-else схлопнулась до одной строчки
+            toast.error(getErrorMessage(error, 'Ошибка при удалении учреждения'));
         }
     };
 
@@ -199,7 +192,6 @@ export const InstitutionsPage = () => {
                                 <p>Вы действительно хотите удалить <strong>{selectedInst.name}</strong>?</p>
                                 <p className="modal-warning-text">Это действие необратимо.</p>
 
-                                {/* Убрали style={{ marginTop: '24px' }}, так как это уже есть в CSS-классе! */}
                                 <div className="modal-actions">
                                     <button className="action-btn-danger" onClick={confirmDelete}>
                                         Да, удалить

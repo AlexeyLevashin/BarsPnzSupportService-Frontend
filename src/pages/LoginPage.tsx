@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth.service';
+import { getErrorMessage } from '../lib/errorHandler';
 import '../css/login.css';
 
 export const LoginPage = () => {
@@ -20,9 +21,9 @@ export const LoginPage = () => {
         try {
             await authService.login({ email, password });
             navigate('/');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Ошибка входа:', err);
-            setError('Неверная почта или пароль.');
+            setError(getErrorMessage(err, 'Неверная почта или пароль.'));
         } finally {
             setIsLoading(false);
         }

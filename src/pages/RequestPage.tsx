@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 
 import '../css/institution.css';
@@ -19,6 +18,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
 import { type ColumnDef, DataTable } from '../components/ui/DataTable';
 import { useSignalR } from "../hooks/useSignalR";
+import { getErrorMessage } from '../lib/errorHandler'; // Подключили хелпер
 
 const priorityOptions = [
     { value: Priority.Normal, label: 'Обычный' },
@@ -112,7 +112,7 @@ export const RequestsPage = () => {
             setHasPrev(res.pageInfo.hasPreviousPage);
             setHasNext(res.pageInfo.hasNextPage);
         } catch (error) {
-            toast.error('Ошибка загрузки заявок');
+            toast.error(getErrorMessage(error, 'Ошибка загрузки заявок'));
         } finally {
             setIsLoading(false);
         }
@@ -144,7 +144,7 @@ export const RequestsPage = () => {
                 setAttachedFiles(prev => prev.map(p => p.localId === att.localId ? { ...p, id: fileId, isUploading: false } : p));
             } catch (error) {
                 setAttachedFiles(prev => prev.map(p => p.localId === att.localId ? { ...p, isUploading: false, error: 'Ошибка' } : p));
-                toast.error(`Не удалось загрузить ${att.file.name}`);
+                toast.error(getErrorMessage(error, `Не удалось загрузить ${att.file.name}`));
             }
         });
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -154,7 +154,11 @@ export const RequestsPage = () => {
         const fileToRemove = attachedFiles.find(f => f.localId === localId);
         setAttachedFiles(prev => prev.filter(f => f.localId !== localId));
         if (fileToRemove?.id && !fileToRemove.error) {
-            try { await fileService.delete(fileToRemove.id); } catch (error) { console.error(error); }
+            try {
+                await fileService.delete(fileToRemove.id);
+            } catch (error) {
+                console.error(getErrorMessage(error, 'Ошибка удаления файла на сервере'));
+            }
         }
     };
 
@@ -177,7 +181,7 @@ export const RequestsPage = () => {
             setAttachedFiles([]);
             activeTab !== 'sent' ? handleTabChange('sent') : fetchRequests();
         } catch (error) {
-            toast.error('Ошибка при создании заявки');
+            toast.error(getErrorMessage(error, 'Ошибка при создании заявки'));
         } finally {
             setIsSubmitting(false);
         }
@@ -191,7 +195,7 @@ export const RequestsPage = () => {
             toast.success('Заявка взята в работу');
             fetchRequests();
         } catch (error) {
-            toast.error('Ошибка при назначении');
+            toast.error(getErrorMessage(error, 'Ошибка при назначении'));
             fetchRequests();
         }
     };
@@ -204,7 +208,7 @@ export const RequestsPage = () => {
             setTerminateModalParams(null);
             fetchRequests();
         } catch (e) {
-            toast.error('Ошибка при смене статуса');
+            toast.error(getErrorMessage(e, 'Ошибка при смене статуса'));
         }
     };
 
@@ -219,7 +223,7 @@ export const RequestsPage = () => {
                 // По умолчанию выбираем первого в списке
                 if (ops.length > 0) setSelectedOperatorId(ops[0]?.id || '');
             } catch (error) {
-                toast.error('Не удалось загрузить список сотрудников');
+                toast.error(getErrorMessage(error, 'Не удалось загрузить список сотрудников'));
             }
         } else {
             if (operators.length > 0) setSelectedOperatorId(operators[0]?.id || '');
@@ -237,7 +241,7 @@ export const RequestsPage = () => {
             setAssignModalParams(null);
             fetchRequests(); // Обновляем таблицу
         } catch (error) {
-            toast.error('Ошибка при назначении оператора');
+            toast.error(getErrorMessage(error, 'Ошибка при назначении оператора'));
         } finally {
             setIsAssigning(false);
         }

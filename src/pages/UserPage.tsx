@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 
 import '../css/institution.css';
@@ -15,6 +14,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
 import { DataTable, type ColumnDef } from '../components/ui/DataTable';
 import { authService } from "../services/auth.service";
+import { getErrorMessage } from '../lib/errorHandler'; // Подключили хелпер
 
 const roleOptions = [
     { value: UserRole.User, label: 'Пользователь' },
@@ -57,7 +57,7 @@ export const UsersPage = () => {
             setHasPrev(res.pageInfo.hasPreviousPage);
             setHasNext(res.pageInfo.hasNextPage);
         } catch (error) {
-            toast.error('Ошибка загрузки пользователей');
+            toast.error(getErrorMessage(error, 'Ошибка загрузки пользователей'));
         } finally {
             setIsLoading(false);
         }
@@ -76,7 +76,7 @@ export const UsersPage = () => {
                 setInstitutionsList([myInst]);
             }
         } catch (error) {
-            console.error("Ошибка загрузки справочника:", error);
+            console.error("Ошибка загрузки справочника:", getErrorMessage(error));
         }
     };
 
@@ -134,11 +134,7 @@ export const UsersPage = () => {
                 fetchUsers();
             }
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data?.error) {
-                toast.error(error.response.data.error);
-            } else {
-                toast.error('Ошибка при сохранении пользователя');
-            }
+            toast.error(getErrorMessage(error, 'Ошибка при сохранении пользователя'));
         }
     };
 
@@ -150,11 +146,7 @@ export const UsersPage = () => {
             setModalMode('none');
             fetchUsers();
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.data?.error) {
-                toast.error(error.response.data.error);
-            } else {
-                toast.error('Ошибка удаления');
-            }
+            toast.error(getErrorMessage(error, 'Ошибка удаления'));
         }
     };
 

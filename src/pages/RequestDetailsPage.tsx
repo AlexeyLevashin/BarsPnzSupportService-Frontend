@@ -8,12 +8,17 @@ import { requestService } from '../services/request.service';
 import { messageService } from '../services/message.service';
 import { authService } from '../services/auth.service';
 import { fileService } from '../services/file.service';
+import { userService } from '../services/user.service'; // Добавили для загрузки операторов
+
 import { UserRole } from '../types/user.types';
 import { Priority, RequestStatus } from '../types/request.types';
 import { MessageType } from '../types/message.types';
 import type { GetRequestResponse } from '../types/request.types';
 import type { GetMessageResponse, CreateMessageDto } from '../types/message.types';
+import type { GetOperatorResponse } from '../types/user.types'; // Тип оператора
+
 import { useSignalR } from "../hooks/useSignalR";
+import { getErrorMessage } from '../lib/errorHandler';
 
 const priorityLabels: Record<Priority, string> = {
     [Priority.Normal]: 'Обычный',
@@ -57,8 +62,15 @@ export const RequestDetailsPage = () => {
     // Стейт для реактивного статуса
     const [selectedStatus, setSelectedStatus] = useState<RequestStatus>(RequestStatus.InProgress);
 
+    // Стейты для загрузки файлов
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [attachedFiles, setAttachedFiles] = useState<{ localId: string; file: File; id?: string; isUploading: boolean; error?: string; }[]>([]);
+
+    // Стейты для назначения оператора
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [operators, setOperators] = useState<GetOperatorResponse[]>([]);
+    const [selectedOperatorId, setSelectedOperatorId] = useState<string>('');
+    const [isAssigning, setIsAssigning] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const scrollToBottom = () => {
@@ -87,7 +99,7 @@ export const RequestDetailsPage = () => {
             allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
             setChatFeed(allMessages);
         } catch (error) {
-            toast.error('Ошибка загрузки заявки');
+            toast.error(getErrorMessage(error, 'Ошибка загрузки заявки'));
             navigate('/requests');
         } finally {
             setIsLoading(false);
@@ -112,11 +124,11 @@ export const RequestDetailsPage = () => {
         };
 
         connection.on("ReceiveMessage", handleReceiveMessage);
-        connection.invoke("JoinRequestGroup", id, hasInternalAccess).catch(console.error);
+        connection.invoke("JoinRequestGroup", id, hasInternalAccess).catch(e => console.error(getErrorMessage(e, 'Ошибка подключения к чату')));
 
         return () => {
             connection.off("ReceiveMessage", handleReceiveMessage);
-            if (connection.state === "Connected") connection.invoke("LeaveRequestGroup", id).catch(console.error);
+            if (connection.state === "Connected") connection.invoke("LeaveRequestGroup", id).catch(e => console.error(getErrorMessage(e, 'Ошибка отключения от чата')));
         };
     }, [connection, isConnected, id, hasInternalAccess]);
 
@@ -132,7 +144,7 @@ export const RequestDetailsPage = () => {
                 setAttachedFiles(prev => prev.map(p => p.localId === att.localId ? { ...p, id: fileId, isUploading: false } : p));
             } catch (error) {
                 setAttachedFiles(prev => prev.map(p => p.localId === att.localId ? { ...p, isUploading: false, error: 'Ошибка' } : p));
-                toast.error(`Не удалось загрузить ${att.file.name}`);
+                toast.error(getErrorMessage(error, `Не удалось загрузить ${att.file.name}`));
             }
         });
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -142,7 +154,11 @@ export const RequestDetailsPage = () => {
         const fileToRemove = attachedFiles.find(f => f.localId === localId);
         setAttachedFiles(prev => prev.filter(f => f.localId !== localId));
         if (fileToRemove?.id && !fileToRemove.error) {
-            try { await fileService.delete(fileToRemove.id); } catch (error) { console.error(error); }
+            try {
+                await fileService.delete(fileToRemove.id);
+            } catch (error) {
+                console.error(getErrorMessage(error, 'Ошибка удаления файла на сервере'));
+            }
         }
     };
 
@@ -150,8 +166,52 @@ export const RequestDetailsPage = () => {
         try {
             const url = await fileService.getUrl(fileId);
             window.open(url, '_blank');
-        } catch {
-            toast.error('Не удалось получить ссылку на файл');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось получить ссылку на файл'));
+        }
+    };
+
+    // --- ФУНКЦИИ УПРАВЛЕНИЯ ЗАЯВКОЙ ---
+
+    const handleTakeInWork = async () => {
+        if (!id) return;
+        try {
+            await requestService.takeInWork(id);
+            toast.success('Заявка взята в работу');
+            loadData(); // Перезагружаем карточку, чтобы обновить статусы и список операторов
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Ошибка при взятии в работу'));
+        }
+    };
+
+    const openAssignModal = async () => {
+        setIsAssignModalOpen(true);
+        if (operators.length === 0) {
+            try {
+                const ops = await userService.getOperators();
+                setOperators(ops);
+                if (ops.length > 0) setSelectedOperatorId(ops[0]?.id || '');
+            } catch (error) {
+                toast.error(getErrorMessage(error, 'Не удалось загрузить список сотрудников'));
+            }
+        } else {
+            if (operators.length > 0) setSelectedOperatorId(operators[0]?.id || '');
+        }
+    };
+
+    const handleAssignSubmit = async () => {
+        if (!id || !selectedOperatorId) return;
+        setIsAssigning(true);
+
+        try {
+            await requestService.assignToOperator(id, selectedOperatorId);
+            toast.success('Оператор успешно назначен');
+            setIsAssignModalOpen(false);
+            loadData();
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Ошибка при назначении оператора'));
+        } finally {
+            setIsAssigning(false);
         }
     };
 
@@ -174,12 +234,10 @@ export const RequestDetailsPage = () => {
 
     // --- ДОСТУПНЫЕ СТАТУСЫ В СЕЛЕКТОРЕ ---
     const availableStatuses = useMemo(() => {
-        // Для клиента:
         if (!hasInternalAccess) {
             return [RequestStatus.InProgress, RequestStatus.Closed];
         }
 
-        // Для оператора всегда доступны все рабочие статусы:
         return [
             RequestStatus.InProgress,
             RequestStatus.ClientDataRequest,
@@ -191,7 +249,7 @@ export const RequestDetailsPage = () => {
 
     useEffect(() => {
         if (!availableStatuses.includes(selectedStatus) && availableStatuses.length > 0) {
-            setSelectedStatus(availableStatuses[0] as RequestStatus);;
+            setSelectedStatus(availableStatuses[0] as RequestStatus);
         }
     }, [availableStatuses, selectedStatus]);
 
@@ -204,7 +262,7 @@ export const RequestDetailsPage = () => {
         if (!hasContent) {
             if (selectedStatus === RequestStatus.Closed) return 'Закрыть заявку';
             if (selectedStatus === RequestStatus.Canceled) return 'Отменить заявку';
-            return 'Отправить'; // Кнопка будет физически выключена
+            return 'Отправить';
         }
 
         if (selectedStatus === RequestStatus.PendingReview) return 'Отправить';
@@ -227,11 +285,9 @@ export const RequestDetailsPage = () => {
 
         try {
             if (!hasContent) {
-                // Если нет текста и нет файлов - дергаем тихое закрытие
                 await requestService.terminate(id, selectedStatus);
                 toast.success('Статус заявки обновлен');
             } else {
-                // Если есть текст или файлы - отправляем полноценное сообщение
                 const attachmentIds = attachedFiles.filter(f => f.id && !f.error).map(f => f.id as string);
 
                 const messagePayload: CreateMessageDto = {
@@ -249,9 +305,9 @@ export const RequestDetailsPage = () => {
 
             setMessageText('');
             setAttachedFiles([]);
-            loadData(); // Перезагружаем данные заявки
+            loadData();
         } catch (error) {
-            toast.error('Ошибка при выполнении действия');
+            toast.error(getErrorMessage(error, 'Ошибка при выполнении действия'));
         } finally {
             setIsSending(false);
         }
@@ -259,16 +315,26 @@ export const RequestDetailsPage = () => {
 
     if (isLoading || !request) return <div style={{ padding: '20px' }}>Загрузка...</div>;
     const isInternalMode = inputTab === MessageType.Internal;
+    const handleBack = () => {
+        // Если история браузера позволяет вернуться назад — возвращаемся, иначе идем в список
+        if (window.history.length > 2) {
+            navigate(-1);
+        } else {
+            navigate('/requests');
+        }
+    };
 
     return (
         <div className="content-body rd-container">
             <div className="rd-header">
                 <h2 className="rd-page-title">Заявка #{request.id.substring(0, 8)}</h2>
-                <button className={`action-btn-primary rd-back-btn ${isInternalMode ? 'internal' : 'public'}`} onClick={() => navigate('/requests')}>← К списку заявок</button>
+                <button className={`action-btn-primary rd-back-btn ${isInternalMode ? 'internal' : 'public'}`} onClick={handleBack}>← К списку заявок</button>
             </div>
 
             <div className="data-card rd-info-card">
                 <h3 className="rd-info-title">{request.theme}</h3>
+
+                {/* Основная информация о заявке */}
                 <div className="rd-info-grid">
                     <div><span className="rd-info-label">Статус:</span> <strong className={`status-badge ${request.status === RequestStatus.New ? 'status-new' : 'status-in-progress'}`}>{statusLabels[request.status]}</strong></div>
                     <div><span className="rd-info-label">Приоритет: </span><strong>{priorityLabels[request.priority]}</strong></div>
@@ -284,6 +350,34 @@ export const RequestDetailsPage = () => {
                         </strong>
                     </div>
                 </div>
+
+                {/* Панель управления заявкой (видна только операторам) */}
+                {hasInternalAccess && (
+                    <div style={{
+                        marginTop: '20px',
+                        paddingTop: '15px',
+                        borderTop: '1px solid #e2e8f0',
+                        display: 'flex',
+                        gap: '12px',
+                        alignItems: 'center'
+                    }}>
+                        {
+                            // Проверяем:
+                            // 1. Статус не "Закрыта" или "Отменена"
+                            // 2. Текущий юзер еще не в списке операторов заявки
+                            request.status !== RequestStatus.Closed &&
+                            request.status !== RequestStatus.Canceled &&
+                            !request.operators?.some(op => op.id === currentUser?.id) && (
+                                <button className="action-btn-primary" onClick={handleTakeInWork}>
+                                    Взять в работу
+                                </button>
+                            )
+                        }
+                        <button className="action-btn-secondary" onClick={openAssignModal}>
+                            Назначить оператора
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="data-card rd-chat-card">
@@ -326,12 +420,10 @@ export const RequestDetailsPage = () => {
                 </div>
 
                 {request.status === RequestStatus.Closed || request.status === RequestStatus.Canceled ? (
-                    // ЕСЛИ ЗАКРЫТА/ОТМЕНЕНА: Показываем только текст
                     <div className="rd-input-area" style={{ textAlign: 'center', padding: '20px', color: '#6c757d', backgroundColor: '#f8f9fa' }}>
                         <em>Эта заявка {request.status === RequestStatus.Closed ? 'закрыта' : 'отменена'}. Отправка сообщений недоступна.</em>
                     </div>
                 ) : (
-                    // ЕСЛИ АКТИВНА: Показываем всю твою зону ввода
                     <div className="rd-input-area">
                         {hasInternalAccess && (
                             <div className="rd-tabs">
@@ -386,10 +478,14 @@ export const RequestDetailsPage = () => {
                                 className={`action-btn-primary ${isInternalMode ? 'rd-back-btn internal' : 'rd-back-btn public'}`}
                                 onClick={handleSendMessage}
                                 disabled={
-                                    isSending ||
-                                    attachedFiles.some(f => f.isUploading) ||
-                                    // БЛОКИРУЕМ если нет текста/файлов И статус НЕ закрыт/отменен
-                                    (!messageText.trim() && attachedFiles.length === 0 && selectedStatus !== RequestStatus.Closed && selectedStatus !== RequestStatus.Canceled)
+                                    isSending || // 1. Идет отправка
+                                    attachedFiles.some(f => f.isUploading) || // 2. Еще грузятся файлы
+                                    // 3. БЛОКИРУЕМ, если:
+                                    //    - Нет текста И нет файлов
+                                    //    - И при этом статус НЕ является "Закрыта" или "Отменена"
+                                    (!messageText.trim() && attachedFiles.length === 0 &&
+                                        selectedStatus !== RequestStatus.Closed &&
+                                        selectedStatus !== RequestStatus.Canceled)
                                 }
                             >
                                 {getButtonLabel()}
@@ -398,6 +494,52 @@ export const RequestDetailsPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Модалка назначения оператора */}
+            {isAssignModalOpen && (
+                <>
+                    <div
+                        onClick={() => setIsAssignModalOpen(false)}
+                        style={{
+                            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            zIndex: 999
+                        }}
+                    />
+                    <div className="modal-panel" style={{
+                        position: 'fixed',
+                        zIndex: 1000, maxWidth: '400px', width: '100%', margin: 'auto', left: 0, right: 0, top: '30%', backgroundColor: '#fff', borderRadius: '8px', padding: '20px' }}>
+                        <button className="close-btn" onClick={() => setIsAssignModalOpen(false)} style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+                        <h3 style={{ marginTop: 0 }}>Назначение оператора</h3>
+
+                        <div className="form-group" style={{ marginTop: '15px' }}>
+                            <label style={{ display: 'block', marginBottom: '5px' }}>Выберите сотрудника:</label>
+                            <select
+                                className="form-select"
+                                value={selectedOperatorId}
+                                onChange={(e) => setSelectedOperatorId(e.target.value)}
+                                style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+                            >
+                                <option value="" disabled>-- Выберите оператора --</option>
+                                {operators.map(op => (
+                                    <option key={op.id} value={op.id}>
+                                        {op.operatorFullName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button className="action-btn-secondary" onClick={() => setIsAssignModalOpen(false)}>
+                                Отмена
+                            </button>
+                            <button className="action-btn-primary" onClick={handleAssignSubmit} disabled={isAssigning || !selectedOperatorId}>
+                                {isAssigning ? 'Назначение...' : 'Назначить'}
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
