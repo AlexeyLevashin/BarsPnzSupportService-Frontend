@@ -378,3 +378,78 @@
 .rd-dropdown-item.text-danger:hover {
     background-color: #fdf2f2;
 }
+
+/* Контейнер, который прилипает к верху экрана */
+.rd-sticky-container {
+    position: sticky;
+    top: -24px;
+    z-index: 100;
+    background-color: var(--app-bg);
+    margin-top: -24px;
+    margin-left: -24px;
+    margin-right: -24px;
+    padding: 20px 24px 10px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Свернутая строка */
+.rd-collapsed-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+/* Кнопки Плюс / Минус */
+.rd-collapse-toggle-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Позиционирование минуса внутри data-card */
+.rd-info-card-wrapper {
+    position: relative;
+}
+
+.rd-minus-inside-card {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+}
+
+/* Элементы свернутой строки */
+.rd-collapsed-theme {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: 15px;
+    margin-right: 20px;
+    flex-shrink: 1;
+}
+
+.rd-collapsed-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-shrink: 0;
+    margin-right: 20px;
+}
+
+.rd-collapsed-btn-right {
+    margin-left: auto;
+    flex-shrink: 0;
+}

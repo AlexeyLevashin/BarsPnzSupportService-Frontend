@@ -55,11 +55,21 @@ export const authService = {
             const roleString = payload.role as keyof typeof UserRole;
             const finalRole = UserRole[roleString] ?? UserRole.User;
 
+            // JWT может содержать несколько InstitutionId (массив claim)
+            const rawInstitutionIds = payload.InstitutionId ?? payload.institutionId;
+            let institutionIds: string[] = [];
+            if (Array.isArray(rawInstitutionIds)) {
+                institutionIds = rawInstitutionIds.filter(Boolean);
+            } else if (rawInstitutionIds) {
+                institutionIds = [rawInstitutionIds];
+            }
+
             return {
                 id: payload.nameid,
                 email: payload.email,
                 role: finalRole,
-                institutionId: payload.InstitutionId || payload.institutionId || null
+                employeeId: payload.employeeId || null,
+                institutionIds
             };
         } catch (error) {
             console.error('Ошибка расшифровки JWT-токена:', error);

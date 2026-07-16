@@ -8,7 +8,7 @@ export const requestService = {
     getMy: async (pageData: PaginationParams) => await requestApi.getMy(pageData),
     create: async (data: CreateRequestDto) => await requestApi.create(data),
     getById: async (id: string) => await requestApi.getById(id),
-    takeInWork: async (id: string) => await requestApi.takeInWork(id),
     assignToOperator: async (requestId: string, operatorId: string) => await requestApi.assignToOperator(requestId, operatorId),
-    terminate: async (requestId: string, status: RequestStatus) => await requestApi.terminate(requestId, { status })
+    changeStatus: async (requestId: string, status: RequestStatus) => await requestApi.changeStatus(requestId, { status }),
+    removeOperator: async (requestId: string, operatorId: string) => await requestApi.removeOperator(requestId, operatorId),
 };

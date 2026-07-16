@@ -5,24 +5,38 @@ export enum UserRole {
     SuperAdmin = 'SuperAdmin'
 }
 
+export interface UserInstitutionResponse {
+    institutionId: string;
+    institutionName: string;
+    jobTitleId?: string | null;
+    jobTitleName?: string | null;
+}
+
+export interface WorkplaceRequest {
+    institutionId: string;
+    jobTitleId?: string | null;
+}
+
+// Добавить пользователя к уже существующему сотруднику
 export interface CreateUserByAdminRequest {
+    email: string;
+    role: UserRole;
+}
+
+// Создать сотрудника + пользователя одновременно
+export interface CreateUserWithEmployeeRequest {
     name: string;
     surname: string;
     patronymic?: string | null;
+    phoneNumber?: string | null;
     email: string;
     role: UserRole;
-    institutionId?: string | null;
+    workplaces: WorkplaceRequest[];
 }
 
 export interface CreateUserResponse {
-    id: string;
-    name: string;
-    surname: string;
-    patronymic?: string | null;
     email: string;
     initialPassword: string;
-    role: UserRole;
-    institutionId?: string | null;
 }
 
 export interface GetUserResponse {
@@ -31,8 +45,9 @@ export interface GetUserResponse {
     surname: string;
     patronymic?: string | null;
     email: string;
+    phoneNumber?: string | null;
     role: UserRole;
-    institutionId?: string | null;
+    workplaces: UserInstitutionResponse[];
 }
 
 export interface GetOperatorResponse {

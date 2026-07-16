@@ -20,13 +20,11 @@ export interface GetRequestResponse {
     theme: string;
     createdAt: string;
     closedAt?: string | null;
-
     clientId: string;
     clientFullName: string;
+    institutionId?: string | null;
     institutionName?: string | null;
-
     operators?: { id: string; operatorFullName: string }[];
-
     status: RequestStatus;
     priority: Priority;
 }
@@ -36,6 +34,7 @@ export interface CreateRequestFormState {
     priority: Priority;
     messageText: string;
     attachmentIds?: string[];
+    institutionId?: string | null;
 }
 
 export interface CreateRequestDto {
@@ -45,6 +44,7 @@ export interface CreateRequestDto {
         text: string;
         attachmentIds?: string[];
     };
+    institutionId?: string | null;
 }
 
 export interface UpdateStatusDto {

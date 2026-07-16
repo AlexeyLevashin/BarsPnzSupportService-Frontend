@@ -8,17 +8,19 @@ import '../css/requestDetails.css';
 import { requestService } from '../services/request.service';
 import { authService } from '../services/auth.service';
 import { fileService } from '../services/file.service';
+import { institutionService } from '../services/institution.service';
 import { UserRole } from '../types/user.types';
-import type { CreateRequestDto, CreateRequestFormState, GetRequestResponse } from '../types/request.types';
+import type { CreateRequestFormState, GetRequestResponse } from '../types/request.types';
 import { Priority, RequestStatus } from '../types/request.types';
 import { userService } from '../services/user.service';
 import type { GetOperatorResponse } from '../types/user.types';
+import type { InstitutionResponse } from '../types/institution.types';
 
 import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
 import { type ColumnDef, DataTable } from '../components/ui/DataTable';
 import { useSignalR } from "../hooks/useSignalR";
-import { getErrorMessage } from '../lib/errorHandler'; // Подключили хелпер
+import { getErrorMessage } from '../lib/errorHandler';
 
 const priorityOptions = [
     { value: Priority.Normal, label: 'Обычный' },
@@ -30,7 +32,7 @@ const statusLabels: Record<RequestStatus, string> = {
     [RequestStatus.New]: 'Новая',
     [RequestStatus.InProgress]: 'В работе',
     [RequestStatus.ClientDataRequest]: 'Запрос данных',
-    [RequestStatus.PendingReview]: 'Ожидает рассмотрения',
+    [RequestStatus.PendingReview]: 'Приемка',
     [RequestStatus.Closed]: 'Закрыта',
     [RequestStatus.Canceled]: 'Отменена',
     [RequestStatus.Analysis]: 'Анализ',
@@ -50,6 +52,7 @@ export const RequestsPage = () => {
     const navigate = useNavigate();
     const currentUser = authService.getCurrentUser();
     const hasTabs = currentUser?.role === UserRole.SuperAdmin || currentUser?.role === UserRole.Operator;
+    const requiresInstitution = currentUser?.role === UserRole.User || currentUser?.role === UserRole.UserAdmin;
 
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -62,9 +65,11 @@ export const RequestsPage = () => {
     const [hasPrev, setHasPrev] = useState(false);
     const [hasNext, setHasNext] = useState(false);
 
+    const [myInstitutions, setMyInstitutions] = useState<InstitutionResponse[]>([]);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState<CreateRequestFormState>({
-        theme: '', priority: Priority.Normal, messageText: ''
+        theme: '', priority: Priority.Normal, messageText: '', institutionId: null
     });
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -85,6 +90,19 @@ export const RequestsPage = () => {
         const handleClickOutside = () => setActiveMenuRowId(null);
         window.addEventListener('click', handleClickOutside);
         return () => window.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const loadMyInstitutions = async () => {
+            try {
+                const institutions = await institutionService.getMy();
+                setMyInstitutions(institutions);
+            } catch {
+                // У Operator/SuperAdmin учреждений может не быть — это нормально
+                setMyInstitutions([]);
+            }
+        };
+        loadMyInstitutions();
     }, []);
 
     useEffect(() => {
@@ -162,22 +180,40 @@ export const RequestsPage = () => {
         }
     };
 
+    const openCreateModal = () => {
+        const defaultInstitutionId = requiresInstitution && myInstitutions.length === 1
+            ? myInstitutions[0]?.id ?? null
+            : null;
+        setFormData({ theme: '', priority: Priority.Normal, messageText: '', institutionId: defaultInstitutionId });
+        setAttachedFiles([]);
+        setIsModalOpen(true);
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (attachedFiles.some(f => f.isUploading)) {
             toast.error('Дождитесь окончания загрузки файлов');
             return;
         }
+        if (requiresInstitution && !formData.institutionId) {
+            toast.error('Выберите учреждение');
+            return;
+        }
         setIsSubmitting(true);
         try {
             const attachmentIds = attachedFiles.filter(f => f.id && !f.error).map(f => f.id as string);
-            const messageData: any = { text: formData.messageText };
+            const messageData: { text: string; attachmentIds?: string[] } = { text: formData.messageText };
             if (attachmentIds.length > 0) messageData.attachmentIds = attachmentIds;
 
-            await requestService.create({ theme: formData.theme, priority: formData.priority, message: messageData });
+            await requestService.create({
+                theme: formData.theme,
+                priority: formData.priority,
+                message: messageData,
+                institutionId: formData.institutionId || null
+            });
             toast.success('Заявка успешно создана');
             setIsModalOpen(false);
-            setFormData({ theme: '', priority: Priority.Normal, messageText: '' });
+            setFormData({ theme: '', priority: Priority.Normal, messageText: '', institutionId: null });
             setAttachedFiles([]);
             activeTab !== 'sent' ? handleTabChange('sent') : fetchRequests();
         } catch (error) {
@@ -190,8 +226,12 @@ export const RequestsPage = () => {
     const handleTakeInWork = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         setActiveMenuRowId(null);
+
+        if (!currentUser?.id) return;
+
         try {
-            await requestService.takeInWork(id);
+            await requestService.assignToOperator(id, currentUser.id);
+
             toast.success('Заявка взята в работу');
             fetchRequests();
         } catch (error) {
@@ -203,7 +243,7 @@ export const RequestsPage = () => {
     const handleTerminateSubmit = async (status: RequestStatus) => {
         if (!terminateModalParams) return;
         try {
-            await requestService.terminate(terminateModalParams.requestId, status);
+            await requestService.changeStatus(terminateModalParams.requestId, status);
             toast.success('Статус успешно изменен');
             setTerminateModalParams(null);
             fetchRequests();
@@ -212,7 +252,6 @@ export const RequestsPage = () => {
         }
     };
 
-    // Открываем модалку и параллельно грузим список операторов (если еще не загрузили)
     const openAssignModal = async (requestId: string) => {
         setAssignModalParams({ isOpen: true, requestId });
 
@@ -220,7 +259,6 @@ export const RequestsPage = () => {
             try {
                 const ops = await userService.getOperators();
                 setOperators(ops);
-                // По умолчанию выбираем первого в списке
                 if (ops.length > 0) setSelectedOperatorId(ops[0]?.id || '');
             } catch (error) {
                 toast.error(getErrorMessage(error, 'Не удалось загрузить список сотрудников'));
@@ -230,7 +268,6 @@ export const RequestsPage = () => {
         }
     };
 
-// Отправляем запрос на назначение
     const handleAssignSubmit = async () => {
         if (!assignModalParams || !selectedOperatorId) return;
         setIsAssigning(true);
@@ -239,7 +276,7 @@ export const RequestsPage = () => {
             await requestService.assignToOperator(assignModalParams.requestId, selectedOperatorId);
             toast.success('Оператор успешно назначен');
             setAssignModalParams(null);
-            fetchRequests(); // Обновляем таблицу
+            fetchRequests();
         } catch (error) {
             toast.error(getErrorMessage(error, 'Ошибка при назначении оператора'));
         } finally {
@@ -329,7 +366,7 @@ export const RequestsPage = () => {
             <PageHeader
                 title="Список заявок"
                 actionLabel="Создать заявку"
-                onAction={() => setIsModalOpen(true)}
+                onAction={openCreateModal}
                 actionIcon={
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
                         <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -356,7 +393,6 @@ export const RequestsPage = () => {
                 </div>
             </div>
 
-            {/* Модалка создания заявки */}
             {isModalOpen && (
                 <>
                     <div className="modal-backdrop" onClick={() => setIsModalOpen(false)} />
@@ -374,6 +410,24 @@ export const RequestsPage = () => {
                                     {priorityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
                             </div>
+                            {(requiresInstitution || myInstitutions.length > 0) && (
+                                <div className="form-group">
+                                    <label>Учреждение {requiresInstitution ? '*' : ''}</label>
+                                    <select
+                                        className="form-select"
+                                        required={requiresInstitution}
+                                        value={formData.institutionId || ''}
+                                        onChange={e => setFormData({ ...formData, institutionId: e.target.value || null })}
+                                    >
+                                        <option value="">{requiresInstitution ? '-- Выберите учреждение --' : '-- Без учреждения --'}</option>
+                                        {myInstitutions.map(inst => (
+                                            <option key={inst.id} value={inst.id}>
+                                                {inst.name} (ИНН: {inst.inn})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div className="form-group">
                                 <label>Описание проблемы *</label>
                                 <textarea required value={formData.messageText} onChange={e => setFormData({...formData, messageText: e.target.value})} rows={5} placeholder="Опишите проблему максимально подробно..." />
@@ -401,7 +455,6 @@ export const RequestsPage = () => {
                 </>
             )}
 
-            {/* Модалка закрытия/отмены из таблицы */}
             {terminateModalParams?.isOpen && (
                 <>
                     <div className="modal-backdrop" onClick={() => setTerminateModalParams(null)} style={{ zIndex: 999 }} />

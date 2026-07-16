@@ -19,13 +19,13 @@ export const requestApi = {
     create: async (data: CreateRequestDto): Promise<void> => {
         await axiosInstance.post('/requests', data);
     },
-    takeInWork: async (id: string): Promise<void> => {
-        await axiosInstance.post(`/requests/${id}/take`);
-    },
     assignToOperator: async (requestId: string, operatorId: string): Promise<void> => {
-        await axiosInstance.post(`/requests/${requestId}/assign`, { operatorId });
+        await axiosInstance.post(`/requests/${requestId}/operators`, { operatorId });
     },
-    terminate: async (requestId: string, data: UpdateStatusDto): Promise<void> => {
+    changeStatus: async (requestId: string, data: UpdateStatusDto): Promise<void> => {
         await axiosInstance.patch(`/requests/${requestId}/status`, data);
+    },
+    removeOperator: async (requestId: string, operatorId: string): Promise<void> => {
+        await axiosInstance.delete(`/requests/${requestId}/operators/${operatorId}`);
     }
 };
