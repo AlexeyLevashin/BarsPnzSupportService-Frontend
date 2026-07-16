@@ -7,10 +7,12 @@ import '../css/institution.css';
 import { userService } from '../services/user.service';
 import { employeeService } from '../services/employee.service';
 import { institutionService } from '../services/institution.service';
+import { jobTitleService } from '../services/jobTitle.service';
 import { UserRole } from '../types/user.types';
 import type { GetUserResponse, CreateUserByAdminRequest, WorkplaceRequest } from '../types/user.types';
 import type { GetEmployeeResponse } from '../types/employee.types';
 import type { InstitutionResponse } from '../types/institution.types';
+import type { GetJobTitleResponse } from '../types/jobTitle.types';
 
 import { PageHeader } from '../components/ui/PageHeader';
 import { TableToolbar } from '../components/ui/TableToolbar';
@@ -64,6 +66,9 @@ export const UsersPage = () => {
     const [employees, setEmployees] = useState<GetEmployeeResponse[]>([]);
     const [users, setUsers] = useState<GetUserResponse[]>([]);
     const [institutionsList, setInstitutionsList] = useState<InstitutionResponse[]>([]);
+    const [jobTitles, setJobTitles] = useState<GetJobTitleResponse[]>([]);
+    const [newJobTitleName, setNewJobTitleName] = useState('');
+    const [isCreatingJobTitle, setIsCreatingJobTitle] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const [totalPages, setTotalPages] = useState(1);
@@ -120,8 +125,18 @@ export const UsersPage = () => {
         }
     };
 
+    const fetchJobTitles = async () => {
+        try {
+            const res = await jobTitleService.getAll();
+            setJobTitles(res);
+        } catch (error) {
+            console.error("Ошибка загрузки должностей:", getErrorMessage(error));
+        }
+    };
+
     useEffect(() => {
         fetchInstitutionsForDictionary();
+        fetchJobTitles();
     }, []);
 
     useEffect(() => {
@@ -240,6 +255,31 @@ export const UsersPage = () => {
         });
     };
 
+    const setWorkplaceJobTitle = (institutionId: string, jobTitleId: string | null) => {
+        setFormData({
+            ...formData,
+            workplaces: formData.workplaces.map(w =>
+                w.institutionId === institutionId ? { ...w, jobTitleId } : w
+            )
+        });
+    };
+
+    const handleCreateJobTitle = async () => {
+        const name = newJobTitleName.trim();
+        if (!name) return;
+        setIsCreatingJobTitle(true);
+        try {
+            const created = await jobTitleService.create({ name });
+            setJobTitles(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+            setNewJobTitleName('');
+            toast.success(`Должность «${created.name}» добавлена`);
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Ошибка при создании должности'));
+        } finally {
+            setIsCreatingJobTitle(false);
+        }
+    };
+
     const getInstitutionName = (institutionId: string) => {
         const fromList = institutionsList.find(i => i.id === institutionId);
         if (fromList) return fromList.name;
@@ -356,9 +396,11 @@ export const UsersPage = () => {
         }
     };
 
-    const formatWorkplaces = (workplaces?: { institutionName: string }[]) => {
+    const formatWorkplaces = (workplaces?: { institutionName: string; jobTitleName?: string | null }[]) => {
         if (!workplaces?.length) return <span className="text-muted">-</span>;
-        return workplaces.map(w => w.institutionName).join(', ');
+        return workplaces
+            .map(w => w.jobTitleName ? `${w.institutionName} — ${w.jobTitleName}` : w.institutionName)
+            .join(', ');
     };
 
     const employeeColumns: ColumnDef<GetEmployeeResponse>[] = [
@@ -487,9 +529,7 @@ export const UsersPage = () => {
                                 <p><strong>Телефон:</strong> {selectedEmployee.phoneNumber || '-'}</p>
                                 <p>
                                     <strong>Учреждения:</strong>{' '}
-                                    {selectedEmployee.workplaces?.length
-                                        ? selectedEmployee.workplaces.map(w => w.institutionName).join(', ')
-                                        : '-'}
+                                    {formatWorkplaces(selectedEmployee.workplaces)}
                                 </p>
                                 <p>
                                     <strong>Является пользователем:</strong>{' '}
@@ -516,9 +556,7 @@ export const UsersPage = () => {
                                 <p><strong>Роль:</strong> {roleOptions.find(r => r.value === selectedUser.role)?.label}</p>
                                 <p>
                                     <strong>Учреждения:</strong>{' '}
-                                    {selectedUser.workplaces?.length
-                                        ? selectedUser.workplaces.map(w => w.institutionName).join(', ')
-                                        : '-'}
+                                    {formatWorkplaces(selectedUser.workplaces)}
                                 </p>
 
                                 <div className="modal-actions">
@@ -705,12 +743,24 @@ export const UsersPage = () => {
                                                         display: 'flex',
                                                         justifyContent: 'space-between',
                                                         alignItems: 'center',
+                                                        gap: '8px',
                                                         padding: '6px 10px',
                                                         background: '#f1f5f9',
                                                         borderRadius: '6px',
                                                         border: '1px solid #e2e8f0'
                                                     }}>
-                                                        <span>{getInstitutionName(w.institutionId)}</span>
+                                                        <span style={{ flex: 1 }}>{getInstitutionName(w.institutionId)}</span>
+                                                        <select
+                                                            className="form-select"
+                                                            value={w.jobTitleId || ''}
+                                                            onChange={e => setWorkplaceJobTitle(w.institutionId, e.target.value || null)}
+                                                            style={{ flex: 1, minWidth: 0 }}
+                                                        >
+                                                            <option value="">-- Без должности --</option>
+                                                            {jobTitles.map(jt => (
+                                                                <option key={jt.id} value={jt.id}>{jt.name}</option>
+                                                            ))}
+                                                        </select>
                                                         <button
                                                             type="button"
                                                             onClick={() => removeWorkplace(w.institutionId)}
@@ -750,6 +800,23 @@ export const UsersPage = () => {
                                                 </button>
                                             </div>
                                         )}
+
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                            <input
+                                                placeholder="Новая должность..."
+                                                value={newJobTitleName}
+                                                onChange={e => setNewJobTitleName(e.target.value)}
+                                                style={{ flex: 1 }}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="action-btn-secondary"
+                                                onClick={handleCreateJobTitle}
+                                                disabled={!newJobTitleName.trim() || isCreatingJobTitle}
+                                            >
+                                                {isCreatingJobTitle ? 'Создание...' : '+ Должность'}
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
 
