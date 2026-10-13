@@ -15,6 +15,7 @@ export const tokenUtil = {
     save(value: Token) {
         if (value.accessToken) Cookies.set(StorageItems.ACCESS_TOKEN, value.accessToken);
         if (value.refreshToken) Cookies.set(StorageItems.REFRESH_TOKEN, value.refreshToken);
+        window.dispatchEvent(new Event('auth-tokens-changed'));
     },
     get(): Token {
         return {

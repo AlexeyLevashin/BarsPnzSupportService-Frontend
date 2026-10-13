@@ -1,10 +1,14 @@
 import { authApi } from '../api/auth.api';
 import { tokenUtil } from '../lib/token';
-import type {LoginRequest} from "../types/auth.types";
+import type {LoginRequest, PasswordResetRequest, VerifyPasswordResetRequest, ConfirmPasswordResetRequest} from "../types/auth.types";
 import {UserRole} from "../types/user.types";
 import axios from "axios";
 
 export const authService = {
+    requestPasswordReset: async (request: PasswordResetRequest) => await authApi.requestPasswordReset(request),
+    verifyPasswordReset: async (request: VerifyPasswordResetRequest) => await authApi.verifyPasswordReset(request),
+    confirmPasswordReset: async (request: ConfirmPasswordResetRequest) => await authApi.confirmPasswordReset(request),
+
     login: async (credentials: LoginRequest) => {
         const data = await authApi.login(credentials);
 

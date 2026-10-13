@@ -4,8 +4,15 @@ export const getErrorMessage = (error: unknown, fallbackMessage: string = 'Пр�
     if (axios.isAxiosError(error) && error.response?.data) {
         const data = error.response.data;
 
-        return data.error || fallbackMessage;
+        if (data.error) return data.error;
+        if (data.errors) {
+            const messages = Object.values(data.errors).flat();
+            if (messages.length) return messages.join(' ');
+        }
+        return fallbackMessage;
     }
+
+    if (axios.isAxiosError(error) && error.response?.status === 429) return 'Слишком много запросов. Попробуйте позже.';
 
     // Если это сетевая ошибка (выключен интернет, упал сам сервер)
     if (error instanceof Error) {

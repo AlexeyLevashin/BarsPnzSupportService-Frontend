@@ -4,7 +4,8 @@ import type {
     GetUserResponse,
     CreateUserByAdminRequest,
     CreateUserWithEmployeeRequest,
-    GetOperatorResponse
+    GetOperatorResponse,
+    UpdateUserPasswordRequest
 } from "../types/user.types";
 import type {PagedResponse, PaginationParams} from "../types/common.types";
 
@@ -51,9 +52,17 @@ export const userApi = {
         return response.data as GetUserResponse;
     },
 
+    updatePassword: async (request: UpdateUserPasswordRequest): Promise<void> => {
+        await axiosInstance.put('/users/password', request);
+    },
+
     forceResetPassword: async (id: string): Promise<CreateUserResponse> => {
         const response = await axiosInstance.put(`/users/${id}/reset-password`);
         return response.data as CreateUserResponse;
+    },
+
+    activate: async (id: string): Promise<void> => {
+        await axiosInstance.put(`/users/${id}/activate`);
     },
 
     revokeAccess: async (id: string): Promise<void> => {

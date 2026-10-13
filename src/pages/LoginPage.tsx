@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth.service';
+import { userService } from '../services/user.service';
 import { getErrorMessage } from '../lib/errorHandler';
 import '../css/login.css';
 
@@ -20,7 +21,8 @@ export const LoginPage = () => {
 
         try {
             await authService.login({ email, password });
-            navigate('/');
+            const profile = await userService.getMe();
+            navigate(profile.name && profile.surname ? '/' : '/profile');
         } catch (err: unknown) {
             console.error('Ошибка входа:', err);
             setError(getErrorMessage(err, 'Неверная почта или пароль.'));
@@ -70,7 +72,7 @@ export const LoginPage = () => {
                     <div className="input-group">
                         <div className="label-row">
                             <label htmlFor="password">Пароль</label>
-                            <a href="#" className="forgot-password" tabIndex={-1}>Забыли пароль?</a>
+                            <Link to="/forgot-password" className="forgot-password">Забыли пароль?</Link>
                         </div>
                         <div className="input-wrapper">
                             <input

@@ -139,6 +139,50 @@
     align-items: center;
 }
 
+.job-titles-card {
+    margin-top: 20px;
+}
+
+.job-titles-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+}
+
+.job-titles-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.job-title-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.job-title-form input {
+    width: 240px;
+    max-width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-main);
+}
+
+.job-title-number {
+    width: 64px;
+    color: var(--text-muted);
+}
+
+.job-title-empty {
+    text-align: center;
+    color: var(--text-muted);
+}
+
 /* Красный заголовок для удаления */
 .modal-details h3.modal-header-danger {
     color: #ef4444;
@@ -216,6 +260,20 @@
    МОБИЛЬНАЯ АДАПТАЦИЯ (Учреждения)
    ========================================= */
 @media (max-width: 768px) {
+    .job-titles-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .job-title-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .job-title-form input {
+        width: 100%;
+    }
+
     /* Перестраиваем шапку страницы */
     .page-header {
         flex-direction: column;

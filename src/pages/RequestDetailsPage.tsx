@@ -11,7 +11,7 @@ import { fileService } from '../services/file.service';
 import { userService } from '../services/user.service';
 
 import { UserRole } from '../types/user.types';
-import { Priority, RequestStatus } from '../types/request.types';
+import { Priority, RequestStatus, RequestType } from '../types/request.types';
 import { MessageType } from '../types/message.types';
 import type { GetRequestResponse } from '../types/request.types';
 import type { GetMessageResponse, CreateMessageDto } from '../types/message.types';
@@ -24,6 +24,12 @@ const priorityLabels: Record<Priority, string> = {
     [Priority.Normal]: 'Обычный',
     [Priority.High]: 'Высокий',
     [Priority.Emergency]: 'Критический'
+};
+
+const typeLabels: Record<RequestType, string> = {
+    [RequestType.System]: 'Система',
+    [RequestType.Email]: 'Электронная почта',
+    [RequestType.Phone]: 'Телефон'
 };
 
 const statusLabels: Record<RequestStatus, string> = {
@@ -450,6 +456,7 @@ export const RequestDetailsPage = () => {
                                 <div className="rd-info-grid">
                                     <div><span className="rd-info-label">Статус:</span> <strong className={`status-badge ${request.status === RequestStatus.New ? 'status-new' : 'status-in-progress'}`}>{statusLabels[request.status]}</strong></div>
                                     <div><span className="rd-info-label">Приоритет: </span><strong>{priorityLabels[request.priority]}</strong></div>
+                                    <div><span className="rd-info-label">Тип заявки: </span><strong>{typeLabels[request.type] || '-'}</strong></div>
                                     <div><span className="rd-info-label">Создана: </span><strong>{formatDate(request.createdAt)}</strong></div>
                                     <div><span className="rd-info-label">Учреждение: </span><strong>{request.institutionName || '-'}</strong></div>
                                     <div><span className="rd-info-label">Клиент: </span><strong>{request.clientFullName}</strong></div>

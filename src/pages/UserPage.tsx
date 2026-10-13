@@ -196,8 +196,8 @@ export const UsersPage = () => {
     const handleEditClick = () => {
         if (selectedUser) {
             setFormData({
-                name: selectedUser.name,
-                surname: selectedUser.surname,
+                name: selectedUser.name ?? '',
+                surname: selectedUser.surname ?? '',
                 patronymic: selectedUser.patronymic ?? null,
                 phoneNumber: selectedUser.phoneNumber ?? null,
                 email: selectedUser.email,
@@ -211,8 +211,8 @@ export const UsersPage = () => {
             setFormKind('edit-user');
         } else if (selectedEmployee) {
             setFormData({
-                name: selectedEmployee.name,
-                surname: selectedEmployee.surname,
+                name: selectedEmployee.name ?? '',
+                surname: selectedEmployee.surname ?? '',
                 patronymic: selectedEmployee.patronymic ?? null,
                 phoneNumber: selectedEmployee.phoneNumber ?? null,
                 email: selectedEmployee.email ?? '',
@@ -294,7 +294,8 @@ export const UsersPage = () => {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (isUserForm && roleRequiresWorkplace(formData.role) && formData.workplaces.length === 0) {
+        if (isUserForm && roleRequiresWorkplace(formData.role) && formData.workplaces.length === 0 &&
+            !(formKind === 'edit-user' && selectedUser?.role === UserRole.User && !selectedUser.workplaces.length)) {
             toast.error('Для этой роли необходимо указать хотя бы одно учреждение');
             return;
         }
@@ -396,6 +397,18 @@ export const UsersPage = () => {
         }
     };
 
+    const handleActivate = async () => {
+        if (!selectedUser) return;
+        try {
+            await userService.activate(selectedUser.id);
+            setSelectedUser({ ...selectedUser, isActivated: true });
+            toast.success('Учётная запись активирована. Пароль отправлен на email.');
+            void fetchData();
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось активировать учётную запись'));
+        }
+    };
+
     const formatWorkplaces = (workplaces?: { institutionName: string; jobTitleName?: string | null }[]) => {
         if (!workplaces?.length) return <span className="text-muted">-</span>;
         return workplaces
@@ -406,7 +419,7 @@ export const UsersPage = () => {
     const employeeColumns: ColumnDef<GetEmployeeResponse>[] = [
         {
             header: 'ФИО',
-            renderCell: (emp) => `${emp.surname} ${emp.name} ${emp.patronymic || ''}`.trim()
+            renderCell: (emp) => `${emp.surname ?? ''} ${emp.name ?? ''} ${emp.patronymic || ''}`.trim() || 'Не указано'
         },
         {
             header: 'Email',
@@ -433,7 +446,7 @@ export const UsersPage = () => {
     const userColumns: ColumnDef<GetUserResponse>[] = [
         {
             header: 'ФИО',
-            renderCell: (u) => `${u.surname} ${u.name} ${u.patronymic || ''}`.trim()
+            renderCell: (u) => `${u.surname ?? ''} ${u.name ?? ''} ${u.patronymic || ''}`.trim() || 'Не указано'
         },
         { header: 'Email', key: 'email' },
         {
@@ -554,6 +567,7 @@ export const UsersPage = () => {
                                 <p><strong>Email:</strong> {selectedUser.email}</p>
                                 <p><strong>Телефон:</strong> {selectedUser.phoneNumber || '-'}</p>
                                 <p><strong>Роль:</strong> {roleOptions.find(r => r.value === selectedUser.role)?.label}</p>
+                                <p><strong>Доступ:</strong> {selectedUser.isActivated ? 'Активирован' : 'Ожидает активации'}</p>
                                 <p>
                                     <strong>Учреждения:</strong>{' '}
                                     {formatWorkplaces(selectedUser.workplaces)}
@@ -561,7 +575,12 @@ export const UsersPage = () => {
 
                                 <div className="modal-actions">
                                     <button className="action-btn-secondary" onClick={handleEditClick}>Редактировать</button>
-                                    <button className="action-btn-secondary" onClick={handleResetPassword}>Сбросить пароль</button>
+                                    {!selectedUser.isActivated && isStaff && (
+                                        <button className="action-btn-primary" onClick={() => void handleActivate()}>Активировать</button>
+                                    )}
+                                    {selectedUser.isActivated && selectedUser.id !== currentUser?.id && (
+                                        <button className="action-btn-secondary" onClick={handleResetPassword}>Сбросить пароль</button>
+                                    )}
                                     <button className="action-btn-danger" onClick={() => setModalMode('delete')}>Отозвать доступ</button>
                                 </div>
                             </div>

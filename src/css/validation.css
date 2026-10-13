@@ -1,0 +1,17 @@
+[data-field-error]::before {
+    content: attr(data-field-error);
+    display: block;
+    color: #b91c1c;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.input-wrapper[data-field-error] {
+    display: block;
+}
+
+[aria-invalid="true"] {
+    border-color: #dc2626 !important;
+}

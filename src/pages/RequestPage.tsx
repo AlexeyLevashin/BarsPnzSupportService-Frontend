@@ -11,7 +11,7 @@ import { fileService } from '../services/file.service';
 import { institutionService } from '../services/institution.service';
 import { UserRole } from '../types/user.types';
 import type { CreateRequestFormState, GetRequestResponse } from '../types/request.types';
-import { Priority, RequestStatus } from '../types/request.types';
+import { Priority, RequestStatus, RequestType } from '../types/request.types';
 import { userService } from '../services/user.service';
 import type { GetOperatorResponse } from '../types/user.types';
 import type { InstitutionResponse } from '../types/institution.types';
@@ -26,6 +26,12 @@ const priorityOptions = [
     { value: Priority.Normal, label: 'Обычный' },
     { value: Priority.High, label: 'Высокий' },
     { value: Priority.Emergency, label: 'Критический' }
+];
+
+const typeOptions = [
+    { value: RequestType.System, label: 'Система' },
+    { value: RequestType.Email, label: 'Электронная почта' },
+    { value: RequestType.Phone, label: 'Телефон' }
 ];
 
 const statusLabels: Record<RequestStatus, string> = {
@@ -65,11 +71,12 @@ export const RequestsPage = () => {
     const [hasPrev, setHasPrev] = useState(false);
     const [hasNext, setHasNext] = useState(false);
 
-    const [myInstitutions, setMyInstitutions] = useState<InstitutionResponse[]>([]);
+    const [availableInstitutions, setAvailableInstitutions] = useState<InstitutionResponse[]>([]);
+    const [institutionsLoading, setInstitutionsLoading] = useState(true);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState<CreateRequestFormState>({
-        theme: '', priority: Priority.Normal, messageText: '', institutionId: null
+        theme: '', priority: Priority.Normal, type: RequestType.System, messageText: '', institutionId: null
     });
 
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -93,17 +100,33 @@ export const RequestsPage = () => {
     }, []);
 
     useEffect(() => {
-        const loadMyInstitutions = async () => {
+        const loadInstitutions = async () => {
             try {
-                const institutions = await institutionService.getMy();
-                setMyInstitutions(institutions);
-            } catch {
-                // У Operator/SuperAdmin учреждений может не быть — это нормально
-                setMyInstitutions([]);
+                if (hasTabs) {
+                    const institutions: InstitutionResponse[] = [];
+                    let page = 1;
+                    let hasNext = true;
+                    while (hasNext) {
+                        const result = await institutionService.getAll({ page, pageSize: 50 });
+                        institutions.push(...result.items);
+                        hasNext = result.pageInfo.hasNextPage;
+                        page++;
+                    }
+                    setAvailableInstitutions(institutions);
+                } else {
+                    setAvailableInstitutions(await institutionService.getMy());
+                }
+            } catch (error) {
+                setAvailableInstitutions([]);
+                if (requiresInstitution) {
+                    toast.error(getErrorMessage(error, 'Не удалось загрузить ваши учреждения'));
+                }
+            } finally {
+                setInstitutionsLoading(false);
             }
         };
-        loadMyInstitutions();
-    }, []);
+        void loadInstitutions();
+    }, [hasTabs, requiresInstitution]);
 
     useEffect(() => {
         if (!connection) return;
@@ -181,10 +204,10 @@ export const RequestsPage = () => {
     };
 
     const openCreateModal = () => {
-        const defaultInstitutionId = requiresInstitution && myInstitutions.length === 1
-            ? myInstitutions[0]?.id ?? null
+        const defaultInstitutionId = requiresInstitution && availableInstitutions.length === 1
+            ? availableInstitutions[0]?.id ?? null
             : null;
-        setFormData({ theme: '', priority: Priority.Normal, messageText: '', institutionId: defaultInstitutionId });
+        setFormData({ theme: '', priority: Priority.Normal, type: RequestType.System, messageText: '', institutionId: defaultInstitutionId });
         setAttachedFiles([]);
         setIsModalOpen(true);
     };
@@ -208,12 +231,13 @@ export const RequestsPage = () => {
             await requestService.create({
                 theme: formData.theme,
                 priority: formData.priority,
+                type: formData.type,
                 message: messageData,
                 institutionId: formData.institutionId || null
             });
             toast.success('Заявка успешно создана');
             setIsModalOpen(false);
-            setFormData({ theme: '', priority: Priority.Normal, messageText: '', institutionId: null });
+            setFormData({ theme: '', priority: Priority.Normal, type: RequestType.System, messageText: '', institutionId: null });
             setAttachedFiles([]);
             activeTab !== 'sent' ? handleTabChange('sent') : fetchRequests();
         } catch (error) {
@@ -288,6 +312,7 @@ export const RequestsPage = () => {
         { header: 'ТЕМА', renderCell: (item) => <div className="item-name text-truncate" title={item.theme}>{item.theme}</div> },
         { header: 'СОЗДАНА', renderCell: (item) => formatDate(item.createdAt) },
         { header: 'ПРИОРИТЕТ', renderCell: (item) => priorityOptions.find(p => p.value === item.priority)?.label || '-' },
+        { header: 'ТИП', renderCell: (item) => typeOptions.find(type => type.value === item.type)?.label || '-' },
         { header: 'СТАТУС', renderCell: (item) => <span className={`status-badge ${item.status === RequestStatus.New ? 'status-new' : 'status-in-progress'}`}>{statusLabels[item.status]}</span> },
         { header: 'УЧРЕЖДЕНИЕ', renderCell: (item) => <span className={item.institutionName ? '' : 'text-muted'}>{item.institutionName || '-'}</span> },
         { header: 'КЛИЕНТ', renderCell: (item) => item.clientFullName },
@@ -410,24 +435,29 @@ export const RequestsPage = () => {
                                     {priorityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
                             </div>
-                            {(requiresInstitution || myInstitutions.length > 0) && (
-                                <div className="form-group">
-                                    <label>Учреждение {requiresInstitution ? '*' : ''}</label>
-                                    <select
-                                        className="form-select"
-                                        required={requiresInstitution}
-                                        value={formData.institutionId || ''}
-                                        onChange={e => setFormData({ ...formData, institutionId: e.target.value || null })}
-                                    >
-                                        <option value="">{requiresInstitution ? '-- Выберите учреждение --' : '-- Без учреждения --'}</option>
-                                        {myInstitutions.map(inst => (
-                                            <option key={inst.id} value={inst.id}>
-                                                {inst.name} (ИНН: {inst.inn})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            <div className="form-group">
+                                <label>Тип заявки *</label>
+                                <select className="form-select" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as RequestType})}>
+                                    {typeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Учреждение {requiresInstitution ? '*' : ''}</label>
+                                <select
+                                    className="form-select"
+                                    required={requiresInstitution}
+                                    disabled={institutionsLoading}
+                                    value={formData.institutionId || ''}
+                                    onChange={e => setFormData({ ...formData, institutionId: e.target.value || null })}
+                                >
+                                    <option value="">{institutionsLoading ? 'Загрузка учреждений...' : requiresInstitution ? '-- Выберите учреждение --' : '-- Без учреждения --'}</option>
+                                    {availableInstitutions.map(inst => (
+                                        <option key={inst.id} value={inst.id}>
+                                            {inst.name} (ИНН: {inst.inn})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                             <div className="form-group">
                                 <label>Описание проблемы *</label>
                                 <textarea required value={formData.messageText} onChange={e => setFormData({...formData, messageText: e.target.value})} rows={5} placeholder="Опишите проблему максимально подробно..." />

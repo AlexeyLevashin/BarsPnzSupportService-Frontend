@@ -5,6 +5,12 @@ export enum Priority {
     Emergency = 'Emergency'
 }
 
+export enum RequestType {
+    System = 'System',
+    Email = 'Email',
+    Phone = 'Phone'
+}
+
 export enum RequestStatus {
     New = 'New',
     InProgress = 'InProgress',
@@ -26,12 +32,14 @@ export interface GetRequestResponse {
     institutionName?: string | null;
     operators?: { id: string; operatorFullName: string }[];
     status: RequestStatus;
+    type: RequestType;
     priority: Priority;
 }
 
 export interface CreateRequestFormState {
     theme: string;
     priority: Priority;
+    type: RequestType;
     messageText: string;
     attachmentIds?: string[];
     institutionId?: string | null;
@@ -40,6 +48,7 @@ export interface CreateRequestFormState {
 export interface CreateRequestDto {
     theme: string;
     priority: Priority;
+    type: RequestType;
     message: {
         text: string;
         attachmentIds?: string[];

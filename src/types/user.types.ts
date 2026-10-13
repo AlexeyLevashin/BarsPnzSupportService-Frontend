@@ -41,16 +41,22 @@ export interface CreateUserResponse {
 
 export interface GetUserResponse {
     id: string;
-    name: string;
-    surname: string;
+    name: string | null;
+    surname: string | null;
     patronymic?: string | null;
     email: string;
     phoneNumber?: string | null;
     role: UserRole;
+    isActivated: boolean;
     workplaces: UserInstitutionResponse[];
 }
 
 export interface GetOperatorResponse {
     id: string;
     operatorFullName: string;
+}
+export interface UpdateUserPasswordRequest {
+    password: string;
+    newPassword: string;
+    confirmNewPassword: string;
 }

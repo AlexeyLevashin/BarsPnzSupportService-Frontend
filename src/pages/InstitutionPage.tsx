@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { institutionService } from '../services/institution.service';
 import { employeeService } from '../services/employee.service';
+import { jobTitleService } from '../services/jobTitle.service';
 import type { InstitutionResponse, CreateInstitutionRequest } from '../types/institution.types';
 import type { GetEmployeeResponse } from '../types/employee.types';
+import type { GetJobTitleResponse } from '../types/jobTitle.types';
 import toast from 'react-hot-toast';
 import { getErrorMessage } from '../lib/errorHandler';
 import '../css/institution.css';
@@ -28,8 +30,8 @@ const emptyHeadForm = {
     email: '' as string | null
 };
 
-const formatEmployeeFio = (emp: { surname: string; name: string; patronymic?: string | null }) =>
-    `${emp.surname} ${emp.name} ${emp.patronymic || ''}`.trim();
+const formatEmployeeFio = (emp: { surname: string | null; name: string | null; patronymic?: string | null }) =>
+    [emp.surname, emp.name, emp.patronymic].filter(Boolean).join(' ') || 'Не указано';
 
 export const InstitutionsPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -38,6 +40,10 @@ export const InstitutionsPage = () => {
 
     const [institutions, setInstitutions] = useState<InstitutionResponse[]>([]);
     const [employees, setEmployees] = useState<GetEmployeeResponse[]>([]);
+    const [jobTitles, setJobTitles] = useState<GetJobTitleResponse[]>([]);
+    const [jobTitlesLoading, setJobTitlesLoading] = useState(true);
+    const [newJobTitleName, setNewJobTitleName] = useState('');
+    const [isCreatingJobTitle, setIsCreatingJobTitle] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [totalPages, setTotalPages] = useState(1);
     const [hasPrev, setHasPrev] = useState(false);
@@ -79,7 +85,29 @@ export const InstitutionsPage = () => {
 
     useEffect(() => {
         fetchEmployees();
+        jobTitleService.getAll()
+            .then(titles => setJobTitles(titles.sort((a, b) => a.name.localeCompare(b.name))))
+            .catch(error => toast.error(getErrorMessage(error, 'Ошибка при загрузке должностей')))
+            .finally(() => setJobTitlesLoading(false));
     }, []);
+
+    const handleCreateJobTitle = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const name = newJobTitleName.trim();
+        if (!name) return;
+
+        setIsCreatingJobTitle(true);
+        try {
+            const created = await jobTitleService.create({ name });
+            setJobTitles(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+            setNewJobTitleName('');
+            toast.success(`Должность «${created.name}» добавлена`);
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Ошибка при создании должности'));
+        } finally {
+            setIsCreatingJobTitle(false);
+        }
+    };
 
     const handleRowClick = (inst: InstitutionResponse) => {
         setSelectedInst(inst);
@@ -309,6 +337,38 @@ export const InstitutionsPage = () => {
                     </button>
                 </div>
             </div>
+
+            <section className="data-card job-titles-card">
+                <div className="job-titles-header">
+                    <h3>Должности</h3>
+                    <form className="job-title-form" onSubmit={handleCreateJobTitle}>
+                        <input
+                            aria-label="Название новой должности"
+                            placeholder="Название должности"
+                            value={newJobTitleName}
+                            onChange={e => setNewJobTitleName(e.target.value)}
+                            required
+                        />
+                        <button className="action-btn-primary" type="submit" disabled={!newJobTitleName.trim() || isCreatingJobTitle}>
+                            {isCreatingJobTitle ? 'Создание...' : 'Добавить'}
+                        </button>
+                    </form>
+                </div>
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead><tr><th className="job-title-number">№</th><th>Название должности</th></tr></thead>
+                        <tbody>
+                            {jobTitlesLoading ? (
+                                <tr><td colSpan={2} className="job-title-empty">Загрузка...</td></tr>
+                            ) : jobTitles.length === 0 ? (
+                                <tr><td colSpan={2} className="job-title-empty">Должностей пока нет</td></tr>
+                            ) : jobTitles.map((title, index) => (
+                                <tr key={title.id}><td className="job-title-number">{index + 1}</td><td>{title.name}</td></tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             {modalMode !== 'none' && (
                 <>

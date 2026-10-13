@@ -11,8 +11,8 @@ export interface CreateEmployeeRequest {
 
 export interface GetEmployeeResponse {
     id: string;
-    name: string;
-    surname: string;
+    name: string | null;
+    surname: string | null;
     patronymic?: string | null;
     email?: string | null;
     phoneNumber?: string | null;

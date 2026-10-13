@@ -1,5 +1,5 @@
 import { userApi } from '../api/user.api';
-import type { CreateUserByAdminRequest, CreateUserWithEmployeeRequest } from '../types/user.types';
+import type { CreateUserByAdminRequest, CreateUserWithEmployeeRequest, UpdateUserPasswordRequest } from '../types/user.types';
 import type { PaginationParams } from '../types/common.types';
 
 export const userService = {
@@ -33,8 +33,16 @@ export const userService = {
         return await userApi.update(id, userData);
     },
 
+    updatePassword: async (request: UpdateUserPasswordRequest) => {
+        await userApi.updatePassword(request);
+    },
+
     forceResetPassword: async (id: string) => {
         return await userApi.forceResetPassword(id);
+    },
+
+    activate: async (id: string) => {
+        await userApi.activate(id);
     },
 
     revokeAccess: async (id: string) => {

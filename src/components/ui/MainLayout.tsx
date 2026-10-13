@@ -3,7 +3,7 @@ import { authService } from '../../services/auth.service';
 import { UserRole } from '../../types/user.types';
 import { Toaster } from 'react-hot-toast';
 import '../../css/main.css';
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export const MainLayout = () => {
 
@@ -13,7 +13,12 @@ export const MainLayout = () => {
     }
 
     // 1. Достаем текущего пользователя и его роль
-    const currentUser = authService.getCurrentUser();
+    const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+    useEffect(() => {
+        const updateUser = () => setCurrentUser(authService.getCurrentUser());
+        window.addEventListener('auth-tokens-changed', updateUser);
+        return () => window.removeEventListener('auth-tokens-changed', updateUser);
+    }, []);
     const role = currentUser?.role;
 
     // 2. Создаем флаги доступа (как мы делали в роутере)

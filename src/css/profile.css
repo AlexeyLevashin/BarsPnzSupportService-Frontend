@@ -1,0 +1,24 @@
+.profile-page { width: 100%; }
+.profile-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); gap: 24px; align-items: start; max-width: 1280px; }
+.profile-card { padding: 24px; gap: 16px; }
+.profile-card h3 { font-size: 18px; margin-bottom: 8px; }
+.profile-card h4, .password-reset-form h4 { margin: 16px 0 12px; font-size: 15px; }
+.profile-hint { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+.profile-fieldset { border: 0; padding: 0; min-width: 0; }
+.profile-fieldset label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 16px; }
+.profile-fieldset input, .profile-fieldset select { display: block; width: 100%; min-width: 0; height: 42px; margin-top: 8px; padding: 8px 12px; font-size: 14px; color: var(--text-main); background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; }
+.profile-fieldset input:focus, .profile-fieldset select:focus { outline: 2px solid var(--primary-color); outline-offset: 1px; }
+.profile-fieldset:disabled { opacity: .7; }
+.profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.profile-wide { grid-column: 1 / -1; }
+.profile-workplace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.profile-workplaces { list-style: none; margin-bottom: 16px; }
+.profile-workplaces li { padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+.profile-workplaces span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 14px; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.profile-recovery { border-top: 1px solid var(--border-color); padding-top: 20px; margin-top: 24px; }
+.password-reset-form { margin-top: 16px; }
+.profile-error { color: #b91c1c; font-size: 14px; margin: 12px 0; }
+.profile-back { margin-top: 24px; }
+@media (max-width: 1000px) { .profile-layout { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .profile-card { padding: 16px; } .profile-fields, .profile-workplace { grid-template-columns: 1fr; } .profile-actions button { width: 100%; justify-content: center; } }
