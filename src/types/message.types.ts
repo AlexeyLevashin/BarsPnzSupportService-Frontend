@@ -23,3 +23,8 @@ export interface CreateMessageDto {
     status: RequestStatus;
     attachmentIds?: string[];
 }
+
+export interface UpdateMessageDto {
+    text?: string;
+    attachmentIds?: string[];
+}

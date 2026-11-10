@@ -5,9 +5,10 @@ interface PageHeaderProps {
     actionIcon?: ReactNode;
     onAction?: () => void;
     leftContent?: ReactNode;
+    extraActions?: ReactNode;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ title, actionLabel, actionIcon, onAction, leftContent }) => {
+export const PageHeader: React.FC<PageHeaderProps> = ({ title, actionLabel, actionIcon, onAction, leftContent, extraActions }) => {
     return (
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
@@ -15,12 +16,15 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, actionLabel, acti
                 {leftContent}
             </div>
 
-            {actionLabel && (
-                <div className="header-right">
-                    <button className="action-btn-primary" onClick={onAction}>
-                        {actionIcon}
-                        {actionLabel}
-                    </button>
+            {(actionLabel || extraActions) && (
+                <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {extraActions}
+                    {actionLabel && (
+                        <button className="action-btn-primary" onClick={onAction}>
+                            {actionIcon}
+                            {actionLabel}
+                        </button>
+                    )}
                 </div>
             )}
         </div>

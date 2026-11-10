@@ -387,6 +387,21 @@ body {
     vertical-align: middle;
 }
 
+.data-table input.request-merge-checkbox {
+    appearance: auto;
+    width: 16px;
+    min-width: 16px;
+    height: 16px;
+    min-height: 16px;
+    margin: 0;
+    padding: 0;
+    border: initial;
+    border-radius: 3px;
+    box-shadow: none;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
 .data-table tr:hover td {
     background-color: var(--sidebar-hover);
 }
@@ -394,6 +409,10 @@ body {
 .item-name {
     font-weight: 500;
     color: var(--text-main);
+}
+
+.item-name.request-unread {
+    font-weight: 700;
 }
 
 /* Бейджи статусов */

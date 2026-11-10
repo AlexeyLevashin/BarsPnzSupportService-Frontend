@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/auth.service';
 import { userService } from '../services/user.service';
+import { twoFactorTokenUtil } from '../lib/token';
 import { getErrorMessage } from '../lib/errorHandler';
 import '../css/login.css';
 
@@ -20,7 +21,15 @@ export const LoginPage = () => {
         setIsLoading(true);
 
         try {
-            await authService.login({ email, password });
+            const result = await authService.login({ email, password });
+
+            // Включённая 2FA: полный доступ не выдан, требуется код из приложения
+            if (result.requiresTwoFactor && result.twoFactorToken) {
+                twoFactorTokenUtil.save(result.twoFactorToken);
+                navigate('/two-factor');
+                return;
+            }
+
             const profile = await userService.getMe();
             navigate(profile.name && profile.surname ? '/' : '/profile');
         } catch (err: unknown) {

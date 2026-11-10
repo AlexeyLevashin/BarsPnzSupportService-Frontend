@@ -1,7 +1,7 @@
 import { authApi } from '../api/auth.api';
-import { tokenUtil } from '../lib/token';
-import type {LoginRequest, PasswordResetRequest, VerifyPasswordResetRequest, ConfirmPasswordResetRequest} from "../types/auth.types";
-import {UserRole} from "../types/user.types";
+import { tokenUtil, twoFactorTokenUtil } from '../lib/token';
+import type { LoginRequest, PasswordResetRequest, VerifyPasswordResetRequest, ConfirmPasswordResetRequest, ConfirmTwoFactorRequest, VerifyTwoFactorRequest } from "../types/auth.types";
+import { UserRole } from "../types/user.types";
 import axios from "axios";
 
 export const authService = {
@@ -9,10 +9,25 @@ export const authService = {
     verifyPasswordReset: async (request: VerifyPasswordResetRequest) => await authApi.verifyPasswordReset(request),
     confirmPasswordReset: async (request: ConfirmPasswordResetRequest) => await authApi.confirmPasswordReset(request),
 
+    twoFactorStatus: async () => await authApi.twoFactorStatus(),
+    enableTwoFactor: async () => await authApi.enableTwoFactor(),
+    confirmTwoFactor: async (request: ConfirmTwoFactorRequest) => await authApi.confirmTwoFactor(request),
+    disableTwoFactor: async (request: ConfirmTwoFactorRequest) => await authApi.disableTwoFactor(request),
+
+    verifyTwoFactor: async (request: VerifyTwoFactorRequest) => {
+        const data = await authApi.verifyTwoFactor(request);
+
+        twoFactorTokenUtil.remove();
+        if (data.accessToken) tokenUtil.save(data);
+
+        return data;
+    },
+
     login: async (credentials: LoginRequest) => {
         const data = await authApi.login(credentials);
 
-        tokenUtil.save(data);
+        // При включённой 2FA токены не приходят - сначала подтверждение кодом
+        if (data.accessToken) tokenUtil.save(data);
 
         return data;
     },

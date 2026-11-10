@@ -4,8 +4,10 @@ export interface LoginRequest {
 }
 
 export interface LoginSuccessResponse {
-    accessToken: string;
-    refreshToken: string;
+    accessToken?: string;
+    refreshToken?: string;
+    requiresTwoFactor?: boolean;
+    twoFactorToken?: string;
 }
 export interface PasswordResetRequest { email: string; }
 export interface VerifyPasswordResetRequest extends PasswordResetRequest { code: string; }
@@ -15,3 +17,8 @@ export interface ConfirmPasswordResetRequest {
     newPassword: string;
     confirmPassword: string;
 }
+export interface TwoFactorStatusResponse { isEnabled: boolean; }
+export interface EnableTwoFactorResponse { secret: string; otpAuthUri: string; }
+export interface ConfirmTwoFactorRequest { code: string; }
+export interface ConfirmTwoFactorResponse { recoveryCodes: string[]; }
+export interface VerifyTwoFactorRequest { twoFactorToken: string; code: string; }

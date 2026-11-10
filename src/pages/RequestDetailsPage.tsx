@@ -13,7 +13,7 @@ import { userService } from '../services/user.service';
 import { UserRole } from '../types/user.types';
 import { Priority, RequestStatus, RequestType } from '../types/request.types';
 import { MessageType } from '../types/message.types';
-import type { GetRequestResponse } from '../types/request.types';
+import type { GetRequestResponse, RequestsMergedNotification, UpdateRequestDto } from '../types/request.types';
 import type { GetMessageResponse, CreateMessageDto } from '../types/message.types';
 import type { GetOperatorResponse } from '../types/user.types';
 
@@ -39,7 +39,8 @@ const statusLabels: Record<RequestStatus, string> = {
     [RequestStatus.PendingReview]: 'Приемка',
     [RequestStatus.Closed]: 'Закрыта',
     [RequestStatus.Canceled]: 'Отменена',
-    [RequestStatus.Analysis]: 'Анализ'
+    [RequestStatus.Analysis]: 'Анализ',
+    [RequestStatus.Merged]: 'Объединена'
 };
 
 const formatDate = (dateString?: string | null) => {
@@ -75,6 +76,15 @@ export const RequestDetailsPage = () => {
     const [selectedOperatorId, setSelectedOperatorId] = useState<string>('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [editingText, setEditingText] = useState('');
+    const [editingFiles, setEditingFiles] = useState<{ localId: string; file: File; id?: string; isUploading: boolean; error?: string; }[]>([]);
+    const [isSavingMessageEdit, setIsSavingMessageEdit] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isEditLoading, setIsEditLoading] = useState(false);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+    const [editInstitutions, setEditInstitutions] = useState<{ id: string; name: string }[]>([]);
+    const [editForm, setEditForm] = useState<UpdateRequestDto | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const scrollToBottom = () => {
@@ -146,6 +156,11 @@ export const RequestDetailsPage = () => {
         setIsLoading(true);
         try {
             const reqData = await requestService.getById(id);
+            if (reqData.mergedIntoRequestId) {
+                toast('Заявка объединена. Открываю родительскую заявку.');
+                navigate(`/requests/${reqData.mergedIntoRequestId}`, { replace: true });
+                return;
+            }
             setRequest(reqData);
             setSelectedStatus(reqData.status);
 
@@ -159,6 +174,11 @@ export const RequestDetailsPage = () => {
 
             allMessages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
             setChatFeed(allMessages);
+            try {
+                await requestService.markAsViewed(id);
+            } catch (viewError) {
+                console.warn('Не удалось отметить заявку прочитанной', viewError);
+            }
         } catch (error) {
             toast.error(getErrorMessage(error, 'Ошибка загрузки заявки'));
             navigate(-1);
@@ -189,11 +209,26 @@ export const RequestDetailsPage = () => {
             });
         };
 
+        const handleRequestMerged = (notification: RequestsMergedNotification) => {
+            if (notification.duplicateRequestIds.includes(id)) {
+                toast('Заявка объединена. Открываю родительскую заявку.');
+                navigate(`/requests/${notification.parentRequestId}`, { replace: true });
+                return;
+            }
+
+            if (notification.parentRequestId === id) {
+                setRequest(notification.parentRequest);
+                void loadData();
+            }
+        };
+
         connection.on("ReceiveMessage", handleReceiveMessage);
+        connection.on('RequestMerged', handleRequestMerged);
         connection.invoke("JoinRequestGroup", id, hasInternalAccess).catch(e => console.error(getErrorMessage(e, 'Ошибка подключения к чату')));
 
         return () => {
             connection.off("ReceiveMessage", handleReceiveMessage);
+            connection.off('RequestMerged', handleRequestMerged);
             if (connection.state === "Connected") connection.invoke("LeaveRequestGroup", id).catch(e => console.error(getErrorMessage(e, 'Ошибка отключения от чата')));
         };
     }, [connection, isConnected, id, hasInternalAccess]);
@@ -260,6 +295,88 @@ export const RequestDetailsPage = () => {
         }
     };
 
+    // ==== Редактирование своего сообщения (текст + вложения) ====
+    const editFileInputRef = useRef<HTMLInputElement>(null);
+
+    const startMessageEdit = (msg: GetMessageResponse) => {
+        setEditingMessageId(msg.id);
+        setEditingText(msg.text ?? '');
+        setEditingFiles([]);
+    };
+
+    const cancelMessageEdit = () => {
+        setEditingMessageId(null);
+        setEditingText('');
+        setEditingFiles([]);
+    };
+
+    const handleEditFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.length) return;
+        const files = Array.from(e.target.files);
+        const newAttachments = files.map(file => ({ localId: Math.random().toString(36).substring(7), file, isUploading: true } as const));
+        setEditingFiles(prev => [...prev, ...newAttachments.map(x => ({ ...x }))]);
+
+        newAttachments.forEach(att => {
+            void (async () => {
+                try {
+                    const fileId = await fileService.upload(att.file);
+                    setEditingFiles(prev => prev.map(p => p.localId === att.localId ? { ...p, id: fileId, isUploading: false } : p));
+                } catch (error) {
+                    setEditingFiles(prev => prev.map(p => p.localId === att.localId ? { ...p, isUploading: false, error: 'Ошибка' } : p));
+                    toast.error(getErrorMessage(error, `Не удалось загрузить ${att.file.name}`));
+                }
+            })();
+        });
+        if (editFileInputRef.current) editFileInputRef.current.value = '';
+    };
+
+    const removeNewEditFile = async (localId: string) => {
+        const fileToRemove = editingFiles.find(f => f.localId === localId);
+        setEditingFiles(prev => prev.filter(f => f.localId !== localId));
+        if (fileToRemove?.id && !fileToRemove.error) {
+            try {
+                await fileService.delete(fileToRemove.id);
+            } catch (error) {
+                console.error(getErrorMessage(error, 'Ошибка удаления файла на сервере'));
+            }
+        }
+    };
+
+    const removeExistingAttachment = async (messageId: string, attachmentId: string) => {
+        try {
+            await fileService.delete(attachmentId);
+            setChatFeed(prev => prev.map(m => m.id === messageId
+                ? { ...m, attachments: (m.attachments ?? []).filter(a => a.id !== attachmentId) }
+                : m));
+            toast.success('Файл удалён');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось удалить файл'));
+        }
+    };
+
+    const saveMessageEdit = async (messageId: string) => {
+        if (editingFiles.some(f => f.isUploading)) {
+            toast.error('Дождитесь окончания загрузки файлов');
+            return;
+        }
+
+        setIsSavingMessageEdit(true);
+        try {
+            const updated = await messageService.updateMessage(messageId, {
+                text: editingText,
+                attachmentIds: editingFiles.filter(f => f.id && !f.error).map(f => f.id as string)
+            });
+
+            setChatFeed(prev => prev.map(m => m.id === messageId ? updated : m));
+            cancelMessageEdit();
+            toast.success('Сообщение обновлено');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось обновить сообщение'));
+        } finally {
+            setIsSavingMessageEdit(false);
+        }
+    };
+
     const openAssignModal = async () => {
         setIsAssignModalOpen(true);
         if (operators.length === 0) {
@@ -291,6 +408,46 @@ export const RequestDetailsPage = () => {
         }
     };
 
+    const openEditModal = async () => {
+        if (!request) return;
+        setIsEditLoading(true);
+        try {
+            const client = await userService.getById(request.clientId);
+            const workplaces = client.workplaces.map(workplace => ({
+                id: workplace.institutionId,
+                name: workplace.institutionName
+            }));
+            setEditInstitutions(workplaces);
+            setEditForm({
+                theme: request.theme,
+                priority: request.priority,
+                institutionId: request.institutionId ?? null
+            });
+            setIsEditModalOpen(true);
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось загрузить данные клиента'));
+        } finally {
+            setIsEditLoading(false);
+        }
+    };
+
+    const handleEditSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!id || !editForm) return;
+        setIsSavingEdit(true);
+        try {
+            const updated = await requestService.update(id, editForm);
+            setRequest(updated);
+            setSelectedStatus(updated.status);
+            setIsEditModalOpen(false);
+            toast.success('Заявка обновлена');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось обновить заявку'));
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
+
     const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newText = e.target.value;
 
@@ -299,14 +456,20 @@ export const RequestDetailsPage = () => {
             if (selectedStatus === RequestStatus.Closed || selectedStatus === RequestStatus.Canceled) {
                 setSelectedStatus(RequestStatus.InProgress);
             }
-            // Иначе, если это оператор и статус InProgress, переводим в Приемку (PendingReview)
-            else if (hasInternalAccess && selectedStatus === RequestStatus.InProgress && inputTab === MessageType.Public) {
+            // Иначе, если это назначенный оператор и статус InProgress, переводим в Приемку (PendingReview)
+            else if (hasInternalAccess && !operatorCannotReply && selectedStatus === RequestStatus.InProgress && inputTab === MessageType.Public) {
                 setSelectedStatus(RequestStatus.PendingReview);
             }
         }
 
         setMessageText(newText);
     };
+
+    // Неназначенный оператор не может отвечать публично - возьмите заявку в работу.
+    // Но оператор, который сам является клиентом заявки, имеет клиентские права
+    const operatorCannotReply = hasInternalAccess &&
+        !(request?.operators?.some(op => op.id === currentUser?.id) ?? false) &&
+        request?.clientId !== currentUser?.id;
 
     const availableStatuses = useMemo(() => {
         if (!hasInternalAccess) {
@@ -508,6 +671,11 @@ export const RequestDetailsPage = () => {
                                         {request.status !== RequestStatus.Closed && request.status !== RequestStatus.Canceled && !request.operators?.some(op => op.id === currentUser?.id) && (
                                             <button className="action-btn-primary" onClick={handleTakeInWork}>Взять в работу</button>
                                         )}
+                                        {request.status !== RequestStatus.Closed && request.status !== RequestStatus.Canceled && request.status !== RequestStatus.Merged && (
+                                            <button className="action-btn-secondary" onClick={() => void openEditModal()} disabled={isEditLoading}>
+                                                {isEditLoading ? 'Загрузка...' : 'Редактировать заявку'}
+                                            </button>
+                                        )}
                                         <button className="action-btn-secondary" onClick={openAssignModal}>Назначить оператора</button>
                                     </div>
                                 )}
@@ -528,6 +696,7 @@ export const RequestDetailsPage = () => {
                             const isClient = msg.senderId === request.clientId;
                             const isColleague = !isMyMessage && !isClient;
                             const isInternal = msg.type === MessageType.Internal;
+                            const isEditingThis = editingMessageId === msg.id;
 
                             let alignClass = isMyMessage ? 'my-message' : isClient ? 'other-message client' : 'other-message colleague';
                             const typeClass = isInternal ? 'internal' : 'public';
@@ -541,14 +710,66 @@ export const RequestDetailsPage = () => {
                                             {isColleague && !isInternal && <span className="rd-badge-colleague">Оператор</span>}
                                         </div>
                                         <span className={`rd-message-time ${isInternal ? 'internal' : ''}`}>{formatDate(msg.createdAt)}</span>
+                                        {isMyMessage && !isEditingThis && !editingMessageId && (
+                                            <button
+                                                type="button"
+                                                className="rd-edit-btn"
+                                                title="Редактировать сообщение"
+                                                onClick={() => startMessageEdit(msg)}
+                                            >✎</button>
+                                        )}
                                     </div>
-                                    <div className="rd-message-text">{msg.text}</div>
-                                    {msg.attachments && msg.attachments.length > 0 && (
-                                        <div className="rd-message-attachments">
-                                            {msg.attachments.map(att => (
-                                                <div key={att.id} className="rd-attachment-link" onClick={() => handleDownloadClick(att.id)}>📎 {att.fileName}</div>
-                                            ))}
+
+                                    {isEditingThis ? (
+                                        <div className="rd-message-edit">
+                                            <textarea
+                                                className="rd-textarea"
+                                                value={editingText}
+                                                onChange={e => setEditingText(e.target.value)}
+                                                rows={3}
+                                                autoFocus
+                                            />
+                                            {(msg.attachments?.length || editingFiles.length > 0) && (
+                                                <div className="rd-attachments-preview">
+                                                    {msg.attachments?.map(att => (
+                                                        <div key={att.id} className="rd-preview-item">
+                                                            <span className="rd-preview-name">{att.fileName}</span>
+                                                            <button type="button" className="rd-preview-remove" title="Удалить файл"
+                                                                onClick={() => void removeExistingAttachment(msg.id, att.id)}>✕</button>
+                                                        </div>
+                                                    ))}
+                                                    {editingFiles.map(file => (
+                                                        <div key={file.localId} className={`rd-preview-item ${file.error ? 'error' : ''}`}>
+                                                            <span className="rd-preview-name">{file.file.name}</span>
+                                                            {file.isUploading && <span className="rd-preview-loader">⏳</span>}
+                                                            <button type="button" className="rd-preview-remove" onClick={() => void removeNewEditFile(file.localId)}>✕</button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <input type="file" multiple style={{ display: 'none' }} ref={editFileInputRef} onChange={handleEditFileSelect} />
+                                            <div className="rd-message-edit-actions">
+                                                <button type="button" className="rd-attach-btn" title="Добавить файл" onClick={() => editFileInputRef.current?.click()}>📎</button>
+                                                <button type="button" className="action-btn-primary rd-back-btn public" disabled={isSavingMessageEdit || editingFiles.some(f => f.isUploading)}
+                                                    onClick={() => void saveMessageEdit(msg.id)}>
+                                                    {isSavingMessageEdit ? 'Сохранение...' : 'Сохранить'}
+                                                </button>
+                                                <button type="button" className="action-btn-secondary rd-back-btn public" disabled={isSavingMessageEdit} onClick={cancelMessageEdit}>
+                                                    Отмена
+                                                </button>
+                                            </div>
                                         </div>
+                                    ) : (
+                                        <>
+                                            <div className="rd-message-text">{msg.text}</div>
+                                            {msg.attachments && msg.attachments.length > 0 && (
+                                                <div className="rd-message-attachments">
+                                                    {msg.attachments.map(att => (
+                                                        <div key={att.id} className="rd-attachment-link" onClick={() => handleDownloadClick(att.id)}>📎 {att.fileName}</div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             );
@@ -582,13 +803,21 @@ export const RequestDetailsPage = () => {
                         onChange={handleTextChange}
                         placeholder={isInternalMode ? "Напишите внутреннюю заметку для коллег..." : "Напишите сообщение..."}
                         rows={3}
+                        disabled={operatorCannotReply && !isInternalMode}
                         className={`rd-textarea ${isInternalMode ? 'internal' : 'public'}`}
                     />
+
+                    {operatorCannotReply && !isInternalMode && (
+                        <p className="rd-chat-empty" style={{ padding: '4px 0 0', textAlign: 'left' }}>
+                            Возьмите заявку в работу («✎ Назначить оператора» → выберите себя), чтобы отвечать клиенту. Внутренние комментарии доступны и без назначения.
+                        </p>
+                    )}
 
                     <div className="rd-input-actions" style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                         <input type="file" multiple ref={fileInputRef} onChange={handleFileSelect}
                                style={{display: 'none'}}/>
                         <button className="rd-attach-btn" onClick={() => fileInputRef.current?.click()}
+                                disabled={operatorCannotReply && !isInternalMode}
                                 title="Прикрепить файл">📎
                         </button>
 
@@ -597,6 +826,7 @@ export const RequestDetailsPage = () => {
                                 className="form-select"
                                 style={{width: 'auto', minWidth: '180px'}}
                                 value={selectedStatus}
+                                disabled={operatorCannotReply}
                                 onChange={(e) => setSelectedStatus(e.target.value as RequestStatus)}
                             >
                                 {availableStatuses.map(st => (
@@ -611,6 +841,7 @@ export const RequestDetailsPage = () => {
                             className={`action-btn-primary ${isInternalMode ? 'rd-back-btn internal' : 'rd-back-btn public'}`}
                             onClick={handleSendMessage}
                             disabled={
+                                operatorCannotReply && !isInternalMode ||
                                 isSending ||
                                 attachedFiles.some(f => f.isUploading) ||
                                 // Кнопка заблокирована, если ничего не написали, файлов нет, И статус остался тем же самым!
@@ -622,6 +853,44 @@ export const RequestDetailsPage = () => {
                     </div>
                 </div>
             </div>
+
+            {isEditModalOpen && editForm && (
+                <>
+                    <div className="modal-backdrop" onClick={() => !isSavingEdit && setIsEditModalOpen(false)} />
+                    <div className="modal-panel">
+                        <button className="close-btn" disabled={isSavingEdit} onClick={() => setIsEditModalOpen(false)}>✕</button>
+                        <form className="modal-form" onSubmit={handleEditSubmit}>
+                            <h3>Редактирование заявки</h3>
+                            <div className="form-group">
+                                <label>Тема *</label>
+                                <input required value={editForm.theme}
+                                    onChange={event => setEditForm(previous => previous ? { ...previous, theme: event.target.value } : previous)} />
+                            </div>
+                            <div className="form-group">
+                                <label>Приоритет *</label>
+                                <select className="form-select" value={editForm.priority}
+                                    onChange={event => setEditForm(previous => previous ? { ...previous, priority: event.target.value as Priority } : previous)}>
+                                    {Object.values(Priority).map(priority => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Учреждение</label>
+                                <select className="form-select" value={editForm.institutionId ?? ''}
+                                    onChange={event => setEditForm(previous => previous ? { ...previous, institutionId: event.target.value || null } : previous)}>
+                                    <option value="">Без учреждения</option>
+                                    {editInstitutions.map(institution => <option key={institution.id} value={institution.id}>{institution.name}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                <button type="button" className="action-btn-secondary" disabled={isSavingEdit} onClick={() => setIsEditModalOpen(false)}>Отмена</button>
+                                <button type="submit" className="action-btn-primary" disabled={isSavingEdit}>
+                                    {isSavingEdit ? 'Сохранение...' : 'Сохранить'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </>
+            )}
 
             {isAssignModalOpen && (
                 <>

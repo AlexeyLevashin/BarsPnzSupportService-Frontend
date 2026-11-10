@@ -3,13 +3,26 @@ import Cookies from 'js-cookie';
 export const StorageItems = {
     ACCESS_TOKEN: 'access_token',
     REFRESH_TOKEN: 'refresh_token',
-    CURRENT_USER: 'current_user'
+    CURRENT_USER: 'current_user',
+    TWO_FACTOR_TOKEN: 'two_factor_token'
 };
 
 export interface Token {
     accessToken?: string;
     refreshToken?: string;
 }
+
+export const twoFactorTokenUtil = {
+    save(value: string) {
+        sessionStorage.setItem(StorageItems.TWO_FACTOR_TOKEN, value);
+    },
+    get(): string {
+        return sessionStorage.getItem(StorageItems.TWO_FACTOR_TOKEN) || '';
+    },
+    remove() {
+        sessionStorage.removeItem(StorageItems.TWO_FACTOR_TOKEN);
+    }
+};
 
 export const tokenUtil = {
     save(value: Token) {

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import toast from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { PasswordResetForm } from '../components/PasswordResetForm';
 import { authService } from '../services/auth.service';
@@ -35,6 +36,11 @@ export const ProfilePage = () => {
     const [password, setPassword] = useState(emptyPassword);
     const [changingPassword, setChangingPassword] = useState(false);
     const [showRecovery, setShowRecovery] = useState(false);
+    const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+    const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; otpAuthUri: string } | null>(null);
+    const [twoFactorCodes, setTwoFactorCodes] = useState<string[]>([]);
+    const [twoFactorCode, setTwoFactorCode] = useState('');
+    const [twoFactorBusy, setTwoFactorBusy] = useState(false);
     const canEditWorkplaces = profile?.role !== UserRole.User;
     const canEditRole = profile?.role === UserRole.Operator || profile?.role === UserRole.SuperAdmin;
 
@@ -45,6 +51,7 @@ export const ProfilePage = () => {
             const user = await userService.getMe();
             setProfile(user);
             setForm(toForm(user));
+            setTwoFactorEnabled((await authService.twoFactorStatus()).isEnabled);
             if (user.role !== UserRole.User) {
                 const [titles, organizations] = await Promise.all([
                     jobTitleService.getAll(),
@@ -125,6 +132,53 @@ export const ProfilePage = () => {
         setForm({ ...form, workplaces: form.workplaces.map((w, i) => i === index ? { ...w, [key]: value || null } : w) });
     };
 
+    const startTwoFactor = async () => {
+        setTwoFactorBusy(true);
+        try {
+            setTwoFactorSetup(await authService.enableTwoFactor());
+            setTwoFactorCodes([]);
+            setTwoFactorCode('');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось начать настройку'));
+        } finally {
+            setTwoFactorBusy(false);
+        }
+    };
+
+    const confirmTwoFactor = async (event: FormEvent) => {
+        event.preventDefault();
+        if (!twoFactorSetup) return;
+        setTwoFactorBusy(true);
+        try {
+            const result = await authService.confirmTwoFactor({ code: twoFactorCode.trim() });
+            setTwoFactorSetup(null);
+            setTwoFactorCode('');
+            setTwoFactorEnabled(true);
+            setTwoFactorCodes(result.recoveryCodes);
+            toast.success('Двухфакторная аутентификация включена');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось подтвердить код'));
+        } finally {
+            setTwoFactorBusy(false);
+        }
+    };
+
+    const disableTwoFactor = async (event: FormEvent) => {
+        event.preventDefault();
+        setTwoFactorBusy(true);
+        try {
+            await authService.disableTwoFactor({ code: twoFactorCode.trim() });
+            setTwoFactorEnabled(false);
+            setTwoFactorCode('');
+            setTwoFactorCodes([]);
+            toast.success('Двухфакторная аутентификация отключена');
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось отключить'));
+        } finally {
+            setTwoFactorBusy(false);
+        }
+    };
+
     return (
         <div className="content-body profile-page">
             <PageHeader title="Мой профиль" />
@@ -189,6 +243,39 @@ export const ProfilePage = () => {
                             <button type="button" className="action-btn-secondary" onClick={() => setShowRecovery(!showRecovery)}>{showRecovery ? 'Скрыть восстановление' : 'Не помню текущий пароль'}</button>
                             {showRecovery && <PasswordResetForm initialEmail={profile.email} />}
                         </div>
+                    </section>
+                    <section className="data-card profile-card">
+                        <h3>Двухфакторная аутентификация</h3>
+                        <p className="profile-hint">Второй фактор - одноразовый код из приложения-аутентификатора (Яндекс.Ключ, Google Authenticator и т.п.).</p>
+                        {twoFactorEnabled ? (
+                            <form onSubmit={disableTwoFactor}>
+                                <fieldset disabled={twoFactorBusy} className="profile-fieldset">
+                                    <label>Код из приложения<input required value={twoFactorCode} autoComplete="one-time-code" onChange={e => setTwoFactorCode(e.target.value)} /></label>
+                                    <button type="submit" className="action-btn-secondary">Отключить</button>
+                                </fieldset>
+                            </form>
+                        ) : twoFactorSetup ? (
+                            <form onSubmit={confirmTwoFactor}>
+                                <fieldset disabled={twoFactorBusy} className="profile-fieldset">
+                                    <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0', background: '#ffffff', borderRadius: '8px' }}>
+                                        <QRCodeSVG value={twoFactorSetup.otpAuthUri} size={176} includeMargin />
+                                    </div>
+                                    <p className="profile-hint">Отсканируйте QR приложением-аутентификатором, либо перейдите по ссылке на телефоне или введите секрет вручную.</p>
+                                    <p className="profile-secret"><code>{twoFactorSetup.secret}</code></p>
+                                    <a className="profile-secret-link" href={twoFactorSetup.otpAuthUri}>Открыть в приложении-аутентификаторе</a>
+                                    <label>Код из приложения<input required value={twoFactorCode} autoComplete="one-time-code" onChange={e => setTwoFactorCode(e.target.value)} /></label>
+                                    <button type="submit" className="action-btn-primary">Подтвердить и включить</button>
+                                </fieldset>
+                            </form>
+                        ) : (
+                            <button type="button" className="action-btn-secondary" disabled={twoFactorBusy} onClick={() => void startTwoFactor()}>Включить</button>
+                        )}
+                        {twoFactorCodes.length > 0 && (
+                            <div className="profile-recovery">
+                                <p className="profile-hint">Одноразовые коды восстановления (показаны один раз - сохраните их в надёжном месте):</p>
+                                <ul className="profile-recovery-codes">{twoFactorCodes.map(code => <li key={code}><code>{code}</code></li>)}</ul>
+                            </div>
+                        )}
                     </section>
                 </div>
             )}

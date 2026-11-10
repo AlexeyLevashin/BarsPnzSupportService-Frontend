@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ProfilePage } from './pages/ProfilePage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { LoginPage } from './pages/LoginPage';
+import { TwoFactorVerifyPage } from './pages/TwoFactorVerifyPage';
 import { PrivateRoute } from './components/PrivateRoute';
 import { RoleProtectedRoute } from './components/RoleProtectedRoute'; // Подключаем нашу защиту
 import { MainLayout } from './components/ui/MainLayout';
@@ -18,6 +19,7 @@ export const App = () => {
             <ValidationMessages />
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/two-factor" element={<TwoFactorVerifyPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
                 <Route element={<PrivateRoute />}>

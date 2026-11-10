@@ -18,7 +18,8 @@ export enum RequestStatus {
     PendingReview = 'PendingReview',
     Closed = 'Closed',
     Canceled = 'Canceled',
-    Analysis = 'Analysis'
+    Analysis = 'Analysis',
+    Merged = 'Merged'
 }
 
 export interface GetRequestResponse {
@@ -27,6 +28,7 @@ export interface GetRequestResponse {
     createdAt: string;
     closedAt?: string | null;
     clientId: string;
+    mergedIntoRequestId?: string | null;
     clientFullName: string;
     institutionId?: string | null;
     institutionName?: string | null;
@@ -34,6 +36,7 @@ export interface GetRequestResponse {
     status: RequestStatus;
     type: RequestType;
     priority: Priority;
+    isUnread: boolean;
 }
 
 export interface CreateRequestFormState {
@@ -54,6 +57,38 @@ export interface CreateRequestDto {
         attachmentIds?: string[];
     };
     institutionId?: string | null;
+}
+
+export interface CreatePhoneRequestDto {
+    clientId: string;
+    theme: string;
+    priority: Priority;
+    institutionId?: string | null;
+    message: {
+        text: string;
+        attachmentIds?: string[];
+    };
+}
+
+export interface MergeRequestsDto {
+    duplicateRequestIds: string[];
+}
+
+export interface UpdateRequestDto {
+    theme: string;
+    priority: Priority;
+    institutionId?: string | null;
+}
+
+export interface RequestsMergedNotification {
+    parentRequestId: string;
+    duplicateRequestIds: string[];
+    parentRequest: GetRequestResponse;
+}
+
+export interface RequestActivityNotification {
+    requestId: string;
+    senderId: string;
 }
 
 export interface UpdateStatusDto {

@@ -10,10 +10,10 @@ import { authService } from '../services/auth.service';
 import { fileService } from '../services/file.service';
 import { institutionService } from '../services/institution.service';
 import { UserRole } from '../types/user.types';
-import type { CreateRequestFormState, GetRequestResponse } from '../types/request.types';
+import type { CreatePhoneRequestDto, CreateRequestFormState, GetRequestResponse, RequestActivityNotification } from '../types/request.types';
 import { Priority, RequestStatus, RequestType } from '../types/request.types';
 import { userService } from '../services/user.service';
-import type { GetOperatorResponse } from '../types/user.types';
+import type { GetOperatorResponse, GetUserResponse } from '../types/user.types';
 import type { InstitutionResponse } from '../types/institution.types';
 
 import { PageHeader } from '../components/ui/PageHeader';
@@ -42,6 +42,7 @@ const statusLabels: Record<RequestStatus, string> = {
     [RequestStatus.Closed]: 'Закрыта',
     [RequestStatus.Canceled]: 'Отменена',
     [RequestStatus.Analysis]: 'Анализ',
+    [RequestStatus.Merged]: 'Объединена',
 };
 
 const formatDate = (dateString?: string | null) => {
@@ -82,6 +83,19 @@ export const RequestsPage = () => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [attachedFiles, setAttachedFiles] = useState<{ localId: string; file: File; id?: string; isUploading: boolean; error?: string; }[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [selectedRequests, setSelectedRequests] = useState<Record<string, Pick<GetRequestResponse, 'id' | 'theme' | 'clientId'>>>({});
+    const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
+    const [mergeParentId, setMergeParentId] = useState('');
+    const [isMerging, setIsMerging] = useState(false);
+
+    const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+    const [clients, setClients] = useState<GetUserResponse[]>([]);
+    const [clientsLoading, setClientsLoading] = useState(false);
+    const [phoneForm, setPhoneForm] = useState<CreatePhoneRequestDto>({
+        clientId: '', theme: '', priority: Priority.Normal, institutionId: null, message: { text: '' }
+    });
+    const [isPhoneSubmitting, setIsPhoneSubmitting] = useState(false);
 
     const [activeMenuRowId, setActiveMenuRowId] = useState<string | null>(null);
     const [terminateModalParams, setTerminateModalParams] = useState<{ isOpen: boolean; requestId: string; currentStatus: RequestStatus } | null>(null);
@@ -132,15 +146,22 @@ export const RequestsPage = () => {
         if (!connection) return;
         connection.on("NewRequestCreated", (newRequest: GetRequestResponse) => {
             if (activeTab === 'received') {
-                setRequests(prev => {
-                    if (prev.some(req => req.id === newRequest.id)) return prev;
-                    return [newRequest, ...prev];
-                });
+                void fetchRequests();
                 toast('Поступила новая заявка!', { icon: '🔔' });
             }
         });
-        return () => { connection.off("NewRequestCreated"); };
-    }, [connection, activeTab]);
+        const handleRequestMerged = () => { void fetchRequests(); };
+        connection.on('RequestMerged', handleRequestMerged);
+        const handleRequestActivity = (activity: RequestActivityNotification) => {
+            if (activity.senderId !== currentUser?.id) void fetchRequests();
+        };
+        connection.on('RequestActivity', handleRequestActivity);
+        return () => {
+            connection.off("NewRequestCreated");
+            connection.off('RequestMerged', handleRequestMerged);
+            connection.off('RequestActivity', handleRequestActivity);
+        };
+    }, [connection, activeTab, currentUser?.id]);
 
     const fetchRequests = async () => {
         setIsLoading(true);
@@ -308,8 +329,96 @@ export const RequestsPage = () => {
         }
     };
 
+    const toggleRequestSelection = (request: GetRequestResponse) => {
+        setSelectedRequests(previous => {
+            const next = { ...previous };
+            if (next[request.id]) delete next[request.id];
+            else next[request.id] = { id: request.id, theme: request.theme, clientId: request.clientId };
+            return next;
+        });
+    };
+
+    const openMergeModal = () => {
+        const selected = Object.values(selectedRequests);
+        if (selected.length < 2) {
+            toast.error('Выберите не менее двух заявок');
+            return;
+        }
+        if (new Set(selected.map(item => item.clientId)).size > 1) {
+            toast.error('Можно объединять только заявки одного клиента');
+            return;
+        }
+        setMergeParentId(selected[0]?.id ?? '');
+        setIsMergeModalOpen(true);
+    };
+
+    const handleMerge = async () => {
+        const duplicateRequestIds = Object.keys(selectedRequests).filter(requestId => requestId !== mergeParentId);
+        if (!mergeParentId || duplicateRequestIds.length === 0) return;
+        setIsMerging(true);
+        try {
+            const parent = await requestService.merge(mergeParentId, { duplicateRequestIds });
+            setSelectedRequests({});
+            setIsMergeModalOpen(false);
+            toast.success('Заявки объединены');
+            navigate(`/requests/${parent.id}`);
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось объединить заявки'));
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
+    const openPhoneModal = async () => {
+        setPhoneForm({ clientId: '', theme: '', priority: Priority.Normal, institutionId: null, message: { text: '' } });
+        setIsPhoneModalOpen(true);
+        if (clients.length > 0) return;
+
+        setClientsLoading(true);
+        try {
+            const loaded: GetUserResponse[] = [];
+            let pageNumber = 1;
+            let totalPages = 1;
+            while (pageNumber <= totalPages) {
+                const result = await userService.getAll({ page: pageNumber, pageSize: 50 });
+                loaded.push(...result.items);
+                totalPages = result.pageInfo.totalPages;
+                pageNumber++;
+            }
+            setClients(loaded.filter(client => client.isActivated &&
+                (client.role === UserRole.User || client.role === UserRole.UserAdmin)));
+        } catch (error) {
+            setIsPhoneModalOpen(false);
+            toast.error(getErrorMessage(error, 'Не удалось загрузить клиентов'));
+        } finally {
+            setClientsLoading(false);
+        }
+    };
+
+    const handlePhoneClientChange = (clientId: string) => {
+        const client = clients.find(item => item.id === clientId);
+        const institutionId = client?.workplaces.length === 1 ? client.workplaces[0]?.institutionId ?? null : null;
+        setPhoneForm(previous => ({ ...previous, clientId, institutionId }));
+    };
+
+    const handlePhoneSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsPhoneSubmitting(true);
+        try {
+            await requestService.createPhone(phoneForm);
+            setIsPhoneModalOpen(false);
+            toast.success('Заявка по звонку создана');
+            setActiveTab('received');
+            setSearchParams({ page: '1' });
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Не удалось создать заявку по звонку'));
+        } finally {
+            setIsPhoneSubmitting(false);
+        }
+    };
+
     const columns: ColumnDef<GetRequestResponse>[] = [
-        { header: 'ТЕМА', renderCell: (item) => <div className="item-name text-truncate" title={item.theme}>{item.theme}</div> },
+        { header: 'ТЕМА', renderCell: (item) => <div className={`item-name text-truncate ${item.isUnread ? 'request-unread' : ''}`} title={item.theme}>{item.theme}</div> },
         { header: 'СОЗДАНА', renderCell: (item) => formatDate(item.createdAt) },
         { header: 'ПРИОРИТЕТ', renderCell: (item) => priorityOptions.find(p => p.value === item.priority)?.label || '-' },
         { header: 'ТИП', renderCell: (item) => typeOptions.find(type => type.value === item.type)?.label || '-' },
@@ -386,6 +495,23 @@ export const RequestsPage = () => {
         }
     ];
 
+    if (hasTabs && activeTab === 'received') {
+        columns.unshift({
+            header: 'ВЫБРАТЬ',
+            width: 64,
+            renderCell: item => (
+                <input
+                    type="checkbox"
+                    className="request-merge-checkbox"
+                    aria-label={`Выбрать заявку ${item.theme} для объединения`}
+                    checked={Boolean(selectedRequests[item.id])}
+                    onClick={event => event.stopPropagation()}
+                    onChange={() => toggleRequestSelection(item)}
+                />
+            )
+        });
+    }
+
     return (
         <div className="content-body">
             <PageHeader
@@ -406,6 +532,14 @@ export const RequestsPage = () => {
                         </div>
                     )
                 }
+                extraActions={hasTabs && <>
+                    {activeTab === 'received' && <button className="action-btn-secondary" onClick={openMergeModal} disabled={Object.keys(selectedRequests).length < 2}>
+                        Объединить ({Object.keys(selectedRequests).length})
+                    </button>}
+                    <button className="action-btn-secondary" onClick={() => void openPhoneModal()}>
+                        Заявка по звонку
+                    </button>
+                </>}
             />
 
             <div className="data-card">
@@ -481,6 +615,93 @@ export const RequestsPage = () => {
                                 {isSubmitting ? 'Создание...' : 'Отправить заявку'}
                             </button>
                         </form>
+                    </div>
+                </>
+            )}
+
+            {isPhoneModalOpen && (
+                <>
+                    <div className="modal-backdrop" onClick={() => !isPhoneSubmitting && setIsPhoneModalOpen(false)} />
+                    <div className="modal-panel">
+                        <button className="close-btn" disabled={isPhoneSubmitting} onClick={() => setIsPhoneModalOpen(false)}>✕</button>
+                        <form onSubmit={handlePhoneSubmit} className="modal-form">
+                            <h3>Заявка по звонку</h3>
+                            <div className="form-group">
+                                <label>Клиент *</label>
+                                <select className="form-select" required disabled={clientsLoading} value={phoneForm.clientId}
+                                    onChange={event => handlePhoneClientChange(event.target.value)}>
+                                    <option value="">{clientsLoading ? 'Загрузка клиентов...' : clients.length === 0 ? 'Активные клиенты не найдены' : '-- Выберите клиента --'}</option>
+                                    {clients.map(client => (
+                                        <option key={client.id} value={client.id}>
+                                            {[client.surname, client.name, client.patronymic].filter(Boolean).join(' ') || client.email} — {client.email}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Учреждение</label>
+                                <select className="form-select" disabled={!phoneForm.clientId}
+                                    value={phoneForm.institutionId || ''}
+                                    onChange={event => setPhoneForm(previous => ({ ...previous, institutionId: event.target.value || null }))}>
+                                    <option value="">-- Без учреждения --</option>
+                                    {clients.find(client => client.id === phoneForm.clientId)?.workplaces.map(workplace => (
+                                        <option key={workplace.institutionId} value={workplace.institutionId}>{workplace.institutionName}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Тема *</label>
+                                <input required value={phoneForm.theme} onChange={event => setPhoneForm(previous => ({ ...previous, theme: event.target.value }))} />
+                            </div>
+                            <div className="form-group">
+                                <label>Приоритет *</label>
+                                <select className="form-select" value={phoneForm.priority}
+                                    onChange={event => setPhoneForm(previous => ({ ...previous, priority: event.target.value as Priority }))}>
+                                    {priorityOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Содержание звонка *</label>
+                                <textarea required rows={5} value={phoneForm.message.text}
+                                    onChange={event => setPhoneForm(previous => ({ ...previous, message: { text: event.target.value } }))} />
+                            </div>
+                            <button type="submit" className="action-btn-primary modal-submit-btn"
+                                disabled={isPhoneSubmitting || clientsLoading || clients.length === 0}>
+                                {isPhoneSubmitting ? 'Создание...' : 'Создать заявку'}
+                            </button>
+                        </form>
+                    </div>
+                </>
+            )}
+
+            {isMergeModalOpen && (
+                <>
+                    <div className="modal-backdrop" onClick={() => !isMerging && setIsMergeModalOpen(false)} />
+                    <div className="modal-panel">
+                        <button className="close-btn" disabled={isMerging} onClick={() => setIsMergeModalOpen(false)}>✕</button>
+                        <div className="modal-form">
+                            <h3>Объединение заявок</h3>
+                            <p>Выберите родительскую заявку. Сообщения и операторы остальных заявок будут перенесены в неё.</p>
+                            <div className="form-group">
+                                <label>Родительская заявка *</label>
+                                <select className="form-select" value={mergeParentId} onChange={event => setMergeParentId(event.target.value)}>
+                                    {Object.values(selectedRequests).map(selected => (
+                                        <option key={selected.id} value={selected.id}>{selected.theme} ({selected.id.slice(0, 8)})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Будут объединены</label>
+                                <ul>{Object.values(selectedRequests).filter(item => item.id !== mergeParentId)
+                                    .map(item => <li key={item.id}>{item.theme} ({item.id.slice(0, 8)})</li>)}</ul>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                                <button className="action-btn-secondary" disabled={isMerging} onClick={() => setIsMergeModalOpen(false)}>Отмена</button>
+                                <button className="action-btn-primary" disabled={isMerging || Object.keys(selectedRequests).length < 2} onClick={() => void handleMerge()}>
+                                    {isMerging ? 'Объединение...' : 'Объединить'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}
